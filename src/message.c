@@ -17,7 +17,7 @@ void free_message(struct message_t *msg){
   */
 
   /* libertar msg */
-
+  return;
 }
 
 int message_to_buffer(struct message_t *msg, char **msg_buf){
@@ -33,7 +33,7 @@ int message_to_buffer(struct message_t *msg, char **msg_buf){
   */
 
   /* Inicializar ponteiro auxiliar com o endereço da memória alocada */
-  ptr = *msg_buf;
+  /*ptr = *msg_buf;
 
   short_value = htons(msg->opcode);
   memcpy(ptr, &short_v, _SHORT);
@@ -41,13 +41,14 @@ int message_to_buffer(struct message_t *msg, char **msg_buf){
 
   short_value = htons(msg->c_type);
   memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
+  ptr += _SHORT;*/
 
   /* Serializar número da tabela */
 
   /* Consoante o conteúdo da mensagem, continuar a serialização da mesma */
 
-  return buffer_size;
+  //return buffer_size;
+  return 0;
 }
 
 struct message_t *buffer_to_message(char *msg_buf, int msg_size){
@@ -59,13 +60,13 @@ struct message_t *buffer_to_message(char *msg_buf, int msg_size){
   /* Alocar memória para uma struct message_t */
 
   /* Recuperar o opcode e c_type */
-  memcpy(&short_aux, msg_buf, _SHORT);
+  /*memcpy(&short_aux, msg_buf, _SHORT);
   msg->opcode = ntohs(short_aux);
   msg_buf += _SHORT;
 
   memcpy(&short_aux, msg_buf, _SHORT);
   msg->c_type = ntohs(short_aux);
-  msg_buf += _SHORT;
+  msg_buf += _SHORT;*/
 
   /* Recuperar table_num */
 
@@ -81,6 +82,7 @@ struct message_t *buffer_to_message(char *msg_buf, int msg_size){
 
   /* Consoante o c_type, continuar a recuperação da mensagem original */
 
-  return msg;
+  //return msg;
+return 0;
 }
 

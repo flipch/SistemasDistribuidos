@@ -3,6 +3,9 @@
 
 #include "entry.h"
 
+#define _SHORT 2
+#define _INT 4
+
 /* Define os possíveis opcodes da mensagem */
 #define OC_SIZE		10
 #define OC_UPDATE  	20

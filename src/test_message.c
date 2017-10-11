@@ -191,7 +191,7 @@ int testEntry() {
 	msg->opcode = OC_PUT;
 	msg->c_type = CT_ENTRY;
 	msg->table_num = 10;
-	msg->content.entry = (struct entry_t *) malloc(sizeof(entry));
+	msg->content.entry = (struct entry_t *) malloc(sizeof(struct entry_t));
 	msg->content.entry->key = strdup(datastr);
 	msg->content.entry->value = data_dup(d);
 
