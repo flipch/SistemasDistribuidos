@@ -28,7 +28,6 @@ void free_message(struct message_t *msg)
   case CT_ENTRY:
     data_destroy(msg->content.entry->value);
     free(msg->content.entry->key);
-    // Free do content.entry->next ??
     free(msg->content.entry);
     break;
   case CT_KEYS:
@@ -50,96 +49,289 @@ void free_message(struct message_t *msg)
   return;
 }
 
-int message_to_buffer(struct message_t *msg, char **msg_buf)
+int message_to_buffer(struct message_t *msg, char **msg_buf)//endereço de um char *
 {
 
   /* Verificar se msg é NULL */
-  if (msg == NULL || msg_buf == NULL)
+  if (msg == NULL)// || msg_buf == NULL NAO E NECESSARIO PORQUE VAI ESTAR A NULL NO INICIO
     return -1;
 
   /* Consoante o msg->c_type, determinar o tamanho do vetor de bytes
      que tem de ser alocado antes de serializar msg
   */
-  int size = -1;
-  int nkeys = 0;
+  int size = 0;
+  int allkeys = 0;
+
+  short opcode, c_type,table_num;
+  int buffer_size = 0;
+
   switch (msg->c_type)
   {
+  case CT_RESULT:
+    
+    int result = htons(msg -> content.result);
+    buffer_size = (_SHORT * 3) + _INT;
+    
+    *msg_buf = (char*) malloc(buffer_size);
+    
+    if(msg_buf == NULL)
+      return -1;
+
+      memcpy(*msg_buf,opcode,_SHORT);
+      size = size + _SHORT;
+
+      memcpy(*msg_buf + size,c_type,_SHORT);
+      size = size + _SHORT;
+
+      memcpy(*msg_buf + size,table_num,_SHORT);
+      size = size + _SHORT;
+
+      memcpy(*msg_buf + size,&result,_INT);
+      size = size + _INT;
+    break;
   case CT_ENTRY:
-    size = sizeof(short) * 3 + 2 + strlen(msg->content.entry->key) + 4 + msg->content.entry->value->datasize;
+    
+    int lenkey = strlen(msg->content.entry->key);
+    int value = msg->content.entry->value->datasize;
+
+    short key = htons(msg->content.entry->key);
+
+    short value = htons(msg->content.entry->value->datasize);
+
+
+    buffer_size = (_SHORT * 3 )+ 2 + strlen(msg->content.entry->key) + 4 + msg->content.entry->value->datasize;
+    *msg_buf = (char*) malloc(buffer_size);
+
+    if(msg_buf == NULL)
+          return -1;
+
+    memcpy(*msg_buf,opcode,_SHORT);
+      size = size + _SHORT;
+
+    memcpy(*msg_buf,c_type,_SHORT);
+      size = size + _SHORT;
+
+    memcpy(*msg_buf + size,table_num,_SHORT);
+      size = size + _SHORT;
+
+    memcpy(*msg_buf + size,&key,_SHORT);
+      size = size + _SHORT;
+
+    memcpy(*msg_buf + size,msg->content.entry->key,lenkey);
+      size = size + lenkey;
+
+    memcpy(*msg_buf + size,&value,_INT);
+      size = size + _INT;
+
+    memcpy(*msg_buf + size,msg->content.entry->value->datasize,value);
+      size = size + value;
+
     break;
   case CT_KEY:
-    size = sizeof(short) * 3 + 2 + strlen(msg->content.key);
+
+
+    //acho que temos que retirar o '/0' ultima posição da string
+
+
+      
+      short keylen = (short)strlen(msg->content.key);
+      short key = htons(keylen);
+
+      buffer_size = _SHORT * 3 + 2 + strlen(msg->content.key);
+
+      *msg_buf = (char*) malloc(buffer_size); 
+
+      if(msg_buf == NULL)
+          return -1;
+
+      memcpy(*msg_buf,opcode,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf,c_type,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,table_num,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,&key,_SHORT);
+      size = size + _SHORT;
+
+      memcpy(*msg_buf + size,msg->content.key,keylen);
+      size = size + keylen;
+
+
     break;
   case CT_KEYS:
-    size = sizeof(short) * 3 + 4;
+    
+    buffer_size = (_SHORT * 3) + 4;
+    
+
     while (msg->content.keys[nkeys] != NULL)
     {
-      size += 2 + strlen(msg->content.keys[nkeys]); // Ask prof
-      nkeys++;
+      buffer_size += 2 + strlen(msg->content.keys[allkeys]);
+      allkeys++;
     }
+
+    int numkeys = htons(allkeys);
+     *msg_buf = (char*) malloc(buffer_size + 1 ); // contem mais uma posição '/0'
+
+      if(msg_buf == NULL)
+          return -1;
+
+
+
+      memcpy(*msg_buf,opcode,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf,c_type,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,table_num,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,&numkeys,_INT);
+        size = size + _INT;
+
+      int i;
+      for(i = 0;i < allkeys ;i++){
+
+        short hkeys = htons((short)strlen(msg->content.keys[i]));
+
+
+        memcpy(*msg_buf + size,&hkeys,_SHORT);
+        size = size + _SHORT;
+
+
+        memcpy(*msg_buf + size,msg->content.keys[i],strlen(msg->content.keys[i]));
+        size = size + strlen(msg->content.keys[i]);
+
+      }
+
     break;
   case CT_VALUE:
-    size = sizeof(short) * 3 + 4 + msg->content.data->datasize;
+    
+
+    int sizeValue = msg->content.data->datasize;
+    int hvalue = htons(sizeValue);
+
+    buffer_size = _SHORT * 3 + 4 + msg->content.data->datasize;
+    *msg_buf = (char*) malloc(buffer_size);
+
+    if(msg_buf == NULL)
+          return -1;
+
+
+      memcpy(*msg_buf,opcode,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf,c_type,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,table_num,_SHORT);
+        size = size + _SHORT;
+
+      memcpy(*msg_buf + size,&hvalue,_INT);
+        size = size + _INT;
+
+      memcpy(*msg_buf + size,msg->content.data->datasize,sizeValue);
+        size = size + sizeValue;
+
+
+
+
     break;
-  case CT_RESULT:
-    size = sizeof(short) * 3 + 4;
-    break;
+  
   }
 
-  /* Alocar quantidade de memória determinada antes 
-     *msg_buf = ....
-  */
-  *msg_buf = malloc(size);
-
-  /* Inicializar ponteiro auxiliar com o endereço da memória alocada */
-  /*ptr = *msg_buf;
   
-  short_value = htons(msg->opcode);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
-
-  short_value = htons(msg->c_type);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;*/
-
-  char **ptr = *msg_buf;
-  int short_value, short_v;
-
-  short_value = htons(msg->opcode);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
-
-  short_value = htons(msg->c_type);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
+ 
+  
+  
+  /* Alocar quantidade de memória determinada antes 
+   *msg_buf = ....
+   */
+ 
+  if(msg_buf ==NULL)
+    return -1;
+  /* Inicializar ponteiro auxiliar com o endereço da memória alocada */
+  char *ptr = *msg_buf;
+  
 
   /* Serializar número da tabela */
+  
+  opcode  = htons(msg->opcode);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;
+  
+  c_type = htons(msg->c_type);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;
+  
+  table_num = htons(msg->table_num);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;
+  
+  short_value = htons(msg->content_u);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;
 
-  /* Consoante o conteúdo da mensagem, continuar a serialização da mesma */
+    
+    /* Consoante o conteúdo da mensagem, continuar a serialização da mesma */
+/*
+    switch(msg->c_type){
+      
+      case CT_RESULT :
 
-  //return buffer_size;
-  return 0;
+      case CT_VALUE:
+
+      case CT_KEY : 
+
+      case CT_ENTRY :
+
+      case CT_KEYS : 
+
+      case 0:
+
+      default : 
+  	
+  */  
+    
+    
+
+  //return 
+  return buffer_size;
 }
 
 struct message_t *buffer_to_message(char *msg_buf, int msg_size)
 {
+  
+  
+  
+  //IGUAL A SERIALIZAR MAS OPERACAO CONTRARIA NTONS
+  
 
   /* Verificar se msg_buf é NULL */
-  if (msg_buf == NULL)
-    return -1;
+  if (msg_buf == NULL ||msg_size < 1 )
+    return NULL;
   /* msg_size tem tamanho mínimo ? */
-  if (msg_size < 1)
-    return -1;
+
   /* Alocar memória para uma struct message_t */
   struct message_t *msg = (struct message_t *) malloc( sizeof (struct message_t));
+  
+  if(msg == NULL)
+    return NULL;
+  
+  
   /* Recuperar o opcode e c_type */
-  /*memcpy(&short_aux, msg_buf, _SHORT);
+  
+  
+  memcpy(&short_aux, msg_buf, _SHORT);
   msg->opcode = ntohs(short_aux);
   msg_buf += _SHORT;
 
   memcpy(&short_aux, msg_buf, _SHORT);
   msg->c_type = ntohs(short_aux);
-  msg_buf += _SHORT;*/
+  msg_buf += _SHORT;
 
   /* Recuperar table_num */
 
@@ -154,7 +346,26 @@ struct message_t *buffer_to_message(char *msg_buf, int msg_size)
   /* O opcode e c_type são válidos? */
 
   /* Consoante o c_type, continuar a recuperação da mensagem original */
+      
+  switch(msg->c_type){
+      
+      case CT_RESULT :
+        
+      case CT_VALUE:
+
+      case CT_KEY : 
+
+      case CT_ENTRY :
+
+      case CT_KEYS : 
+
+      case 0:
+
+      default :       
+      
+        free(msg);
+      
 
   //return msg;
-  return 0;
+  return msg;
 }
