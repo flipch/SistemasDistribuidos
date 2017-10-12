@@ -28,6 +28,7 @@ void free_message(struct message_t *msg)
   case CT_ENTRY:
     data_destroy(msg->content.entry->value);
     free(msg->content.entry->key);
+    // Free do content.entry->next ??
     free(msg->content.entry);
     break;
   case CT_KEYS:
@@ -49,11 +50,11 @@ void free_message(struct message_t *msg)
   return;
 }
 
-int message_to_buffer(struct message_t *msg, char **msg_buf)//endereço de um char *
+int message_to_buffer(struct message_t *msg, char **msg_buf)
 {
 
   /* Verificar se msg é NULL */
-  if (msg == NULL)// || msg_buf == NULL NAO E NECESSARIO PORQUE VAI ESTAR A NULL NO INICIO
+  if (msg == NULL || msg_buf == NULL)
     return -1;
 
   /* Consoante o msg->c_type, determinar o tamanho do vetor de bytes
@@ -64,58 +65,56 @@ int message_to_buffer(struct message_t *msg, char **msg_buf)//endereço de um ch
   switch (msg->c_type)
   {
   case CT_ENTRY:
-    size = _SHORT * 3 + 2 + strlen(msg->content.entry->key) + 4 + msg->content.entry->value->datasize;
+    size = sizeof(short) * 3 + 2 + strlen(msg->content.entry->key) + 4 + msg->content.entry->value->datasize;
     break;
   case CT_KEY:
-    size = _SHORT * 3 + 2 + strlen(msg->content.key);
+    size = sizeof(short) * 3 + 2 + strlen(msg->content.key);
     break;
   case CT_KEYS:
-    size = _SHORT * 3 + 4;
+    size = sizeof(short) * 3 + 4;
     while (msg->content.keys[nkeys] != NULL)
     {
-      size += 2 + strlen(msg->content.keys[nkeys]);
+      size += 2 + strlen(msg->content.keys[nkeys]); // Ask prof
       nkeys++;
     }
     break;
   case CT_VALUE:
-    size = _SHORT * 3 + 4 + msg->content.data->datasize;
+    size = sizeof(short) * 3 + 4 + msg->content.data->datasize;
     break;
   case CT_RESULT:
-    size = _SHORT * 3 + 4;
+    size = sizeof(short) * 3 + 4;
     break;
   }
 
-  
- 
-  int short_value, short_v;
-  
   /* Alocar quantidade de memória determinada antes 
-   *msg_buf = ....
-   */
-  *msg_buf = (char*) malloc(size);
-  if(msg_buf ==NULL)
-    return -1;
-  /* Inicializar ponteiro auxiliar com o endereço da memória alocada */
-  char *ptr = *msg_buf;
-  
+     *msg_buf = ....
+  */
+  *msg_buf = malloc(size);
 
-  /* Serializar número da tabela */
+  /* Inicializar ponteiro auxiliar com o endereço da memória alocada */
+  /*ptr = *msg_buf;
   
-  short_value  = htons(msg->opcode);
+  short_value = htons(msg->opcode);
   memcpy(ptr, &short_v, _SHORT);
   ptr += _SHORT;
-  
+
+  short_value = htons(msg->c_type);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;*/
+
+  char **ptr = *msg_buf;
+  int short_value, short_v;
+
+  short_value = htons(msg->opcode);
+  memcpy(ptr, &short_v, _SHORT);
+  ptr += _SHORT;
+
   short_value = htons(msg->c_type);
   memcpy(ptr, &short_v, _SHORT);
   ptr += _SHORT;
-  
-  short_value = htons(msg->table_num);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
-  
-  short_value = htons(msg->content_u);
-  memcpy(ptr, &short_v, _SHORT);
-  ptr += _SHORT;
+
+  /* Serializar número da tabela */
+
   /* Consoante o conteúdo da mensagem, continuar a serialização da mesma */
 
   //return buffer_size;
@@ -124,14 +123,6 @@ int message_to_buffer(struct message_t *msg, char **msg_buf)//endereço de um ch
 
 struct message_t *buffer_to_message(char *msg_buf, int msg_size)
 {
-  
-  
-  
-  //IGUAL A SERIALIZAR MAS OPERACAO CONTRARIA NTONS
-  
-  
-  
-  
 
   /* Verificar se msg_buf é NULL */
   if (msg_buf == NULL)
@@ -141,15 +132,8 @@ struct message_t *buffer_to_message(char *msg_buf, int msg_size)
     return -1;
   /* Alocar memória para uma struct message_t */
   struct message_t *msg = (struct message_t *) malloc( sizeof (struct message_t));
-  
-  if(msg == NULL)
-    return -1;
-  
-  
   /* Recuperar o opcode e c_type */
-  
-  
-  memcpy(&short_aux, msg_buf, _SHORT);
+  /*memcpy(&short_aux, msg_buf, _SHORT);
   msg->opcode = ntohs(short_aux);
   msg_buf += _SHORT;
 
