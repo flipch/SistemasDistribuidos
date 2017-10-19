@@ -13,6 +13,7 @@ void free_message(struct message_t *msg){
       case CT_ENTRY:
 				data_destroy(msg->content.entry->value);
 				free(msg->content.entry->key);
+		    		free(msg->content.entry);
 				break;
 	case CT_KEYS: table_free_keys(msg->content.keys); break;
 	case CT_KEY: free(msg->content.key); break;
