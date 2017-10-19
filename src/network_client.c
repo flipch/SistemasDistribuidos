@@ -4,15 +4,99 @@
 
 
 int write_all(int sock, char *buf, int len){
+	
+	int tamanho = len;
+	while(len > 0){
+		int result = write(sock,buf,len);
+		if (result < 0){
+
+			perror("write failed: ");
+			return result;
+
+
+		}
+			buf = buf + res
+			len = len - res
+
+	}
+
+	return tamanho;
 }
 
 
 int read_all(int sock, char *buf, int len){
+
+	int tamanho = len;
+	while(len > 0){
+		int result = read(sock,buf,len);
+
+		if(result == 0)
+			return 0;
+
+		if(result < 0){
+			perror("read failed: ");
+			return result;
+
+		}
+
+		buf = buf + res
+		len = len - res
+	}
+
+	return tamanho;
 }
 
 
 struct server_t *network_connect(const char *address_port){
+	
+	if (address_port == NULL)
+		return NULL;
+
+	//copia do endereço de porto e o seu split para obter tanto o seu endereço como o porto
+	char *enderecoPorto = strdup(address_port);
+	char *endereco = strok(enderecoPorto,":");
+	char *porto = strok(NULL,"\0"); 
+
+
 	struct server_t *server = malloc(sizeof(struct server_t));
+
+	//verifica se o server foi bem alocado
+	if(server == NULL){
+		free(address_port);
+		return NULL;
+	}
+	// cria o socket  
+
+	 mySocket = socket(AF_INET,SOCK_STREAM,0)
+	 server-> sock = mySocket;
+	
+	//verfica se ele existe
+	if(mySocket < 0){
+		perror("Não criou o socket");
+		free(server);
+		//free(enderecoPorto)
+		return NULL;
+	}
+
+
+	server -> servidor.sin_family = AF_INET;
+	//fica definido para 2 bytes
+	server -> servidor.sin_porta = htons(atoi(porto));
+
+	//estabelecer a ligação
+
+	if(inet_pton(AF_INET,))
+
+	
+
+
+
+
+
+
+
+
+
 
 	/* Verificar parâmetro da função e alocação de memória */
 
