@@ -46,14 +46,88 @@ int make_server_socket(short port){
 */
 struct message_t *process_message(struct message_t *msg_pedido, struct table_t *tabela){
 	struct message_t *msg_resposta;
-	
+
 	/* Verificar parâmetros de entrada */
+	
+	if(msg_pedido == NULL || tabela == NULL)
+		return NULL;
 
-	/* Verificar opcode e c_type na mensagem de pedido */
+/* Verificar opcode e c_type na mensagem de pedido */
+	if(!(msg_pedido -> opcode == OC_SIZE || msg_pedido -> opcode == OC_DEL || msg_pedido -> opcode == OC_UPDATE || msg_pedido -> opcode == OC_GET || msg_pedido -> opcode == OC_PUT)||
+		!(msg_pedido -> c_type == CT_RESULT || msg_pedido -> c_type == CT_VALUE || msg_pedido -> c_type == CT_KEY  || msg_pedido -> c_type == CT_KEYS || msg_pedido -> c_type == CT_ENTRY))
+		return NULL;
 
-	/* Aplicar operação na tabela */
+
+	int result;
+	struct data_t data;
+	char ** keys;
+	int dataOrkeys = 0;
+
+/* Aplicar operação na tabela */
+	if(msg_pedido->opcode == OC_PUT){
+		if(table_get(tabela,msg_pedido -> content.entry->key ) == NULL)
+			result = table_put(tabela,msg_pedido -> content.entry->key,msg_pedido->content.entry-> value);		
+		else result = -1;
+	}else if(msg_pedido->opcode == OC_GET){
+			if(strcmp(msg_pedido->content.key,"*") != 0)
+				data = table_get(tabela, msg_pedido->content.key);
+			else{
+				keys = table_get_keys(tabela);
+				dataOrkeys = 1;
+			}	
+		}else if(msg_pedido->opcode == OC_DEL){
+			result = table_del(tabela,msg_pedido->content.key)
+		}else if(msg_pedido->opcode == OC_UPDATE){
+			if(table_get(tabela,msg_pedido->content.key) != NULL)
+				result = table_update(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
+			else 
+				result = -1;
+		}else if(msg_pedido->opcode == OC_SIZE){
+			result = table_size(tabela);
+		}
+
+		msg_resposta = (struct message_t*) malloc(sizeof(struct message_t*));
+
+		if(result == -1){
+			msg_resposta->opcode = OC_RT_ERROR;
+			msg_resposta->c_type = CT_RESULT;
+			msg_resposta->content.result = result;
+			return msg_resposta;
+		}
+
 
 	/* Preparar mensagem de resposta */
+
+		msg_resposta->opcode = msg_pedido->opcode +1 ;
+		if(msg_pedido->opcode == OC_PUT){
+			msg_resposta->c_type = CT_RESULT;
+			msg_resposta->content.result = result;
+		}else if(msg_pedido->opcode == OC_GET){
+			if(dataOrkeys == 0){
+				if(data == NULL){
+					struct data_t *not_found = (struct data_t*) malloc (sizeof(struct data_t));
+					not_found->data = NULL;
+					not_found->datasize = 0;
+					msg_resposta->c_type = CT_VALUE;
+					msg_resposta->content.data = not_found;
+				}else{
+					msg_resposta->c_type = CT_VALUE;
+					msg_resposta->content.data = data_create2(data->datasize,data);
+				}
+			}else{
+				msg_resposta->c_type = CT_KEYS;
+				msg_resposta->content.keys = keys;
+			}
+		} else if(msg_pedido->opcode == OC_DEL){
+			msg_resposta->c_type = CT_RESULT;
+			msg_resposta->content.result = result;	
+		}else if(msg_pedido->opcode == OC_UPDATE){
+			msg_resposta->c_type = CT_RESULT;
+			msg_resposta->content.result = result;
+		}else if(msg_pedido->opcode == OC_SIZE){
+			msg_resposta->c_type = CT_RESULT;
+			msg_resposta->content.result = result;
+		}	
 
 	return msg_resposta;
 }
@@ -71,6 +145,19 @@ int network_receive_send(int sockfd, struct table_t *tables){
   int msg_length;
   int message_size, msg_size, result;
   struct message_t *msg_pedido, *msg_resposta;
+
+  if(sockfd < 0 )
+  	return NULL;
+
+  if(tables == NULL){
+  	free(tables);
+  	return NULL;
+
+  }
+  	
+
+
+
 
 	/* Verificar parâmetros de entrada */
 

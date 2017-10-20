@@ -5,97 +5,50 @@
 
 int write_all(int sock, char *buf, int len){
 	
-	int tamanho = len;
+	int buffersize = len;
 	while(len > 0){
 		int result = write(sock,buf,len);
 		if (result < 0){
-
-			perror("write failed: ");
-			return result;
+				if(erno == EINR)
+					continue;
+				perror("write failed: ");
+				return result;
 
 
 		}
-			buf = buf + res
-			len = len - res
+			buf += res;
+			len -= res;
 
 	}
 
-	return tamanho;
+	return buffersize;
 }
 
 
 int read_all(int sock, char *buf, int len){
 
-	int tamanho = len;
+	int buffersize = len;
 	while(len > 0){
 		int result = read(sock,buf,len);
 
-		if(result == 0)
-			return 0;
-
 		if(result < 0){
+			if(errno ==EINR)
+				continue;
 			perror("read failed: ");
 			return result;
 
 		}
 
-		buf = buf + res
-		len = len - res
+		buf += res;
+		len -= res;
 	}
 
-	return tamanho;
+	return buffersize;
 }
 
 
 struct server_t *network_connect(const char *address_port){
-	
-	if (address_port == NULL)
-		return NULL;
-
-	//copia do endereço de porto e o seu split para obter tanto o seu endereço como o porto
-	char *enderecoPorto = strdup(address_port);
-	char *endereco = strok(enderecoPorto,":");
-	char *porto = strok(NULL,"\0"); 
-
-
-	struct server_t *server = malloc(sizeof(struct server_t));
-
-	//verifica se o server foi bem alocado
-	if(server == NULL){
-		free(address_port);
-		return NULL;
-	}
-	// cria o socket  
-
-	 mySocket = socket(AF_INET,SOCK_STREAM,0)
-	 server-> sock = mySocket;
-	
-	//verfica se ele existe
-	if(mySocket < 0){
-		perror("Não criou o socket");
-		free(server);
-		//free(enderecoPorto)
-		return NULL;
-	}
-
-
-	server -> servidor.sin_family = AF_INET;
-	//fica definido para 2 bytes
-	server -> servidor.sin_porta = htons(atoi(porto));
-
-	//estabelecer a ligação
-
-	if(inet_pton(AF_INET,))
-
-	
-
-
-
-
-
-
-
-
+		struct server_t *server = malloc(sizeof(struct server_t));
 
 
 	/* Verificar parâmetro da função e alocação de memória */
@@ -112,6 +65,65 @@ struct server_t *network_connect(const char *address_port){
 
 	/* Se a ligação não foi estabelecida, retornar NULL */
 
+
+
+	if (address_port == NULL)
+		return NULL;
+
+	if(server == NULL)
+		return NULL;
+
+
+	char *temp = malloc(strlen(address_port));
+	char *ip = malloc(sizeof(char)*sizeof(long));
+	char *port = malloc(sizeof(char)*sizeof(short));
+	strcpy(temp,address_port);
+
+	//copia do endereço de porto e o seu split para obter tanto o seu endereço como o porto
+	char *enderecoPorto = strdup(address_port);
+	char *endereco = strok(enderecoPorto,":");
+	char *porto = strok(NULL,"\0"); 
+
+	char *token = strok(temp,":");
+
+	int i = 0;
+	while(token != NULL){
+		if(i==0)
+			stcpy(ip,token);
+		if(i == 1)
+			strcpy(port,token);
+		i++;
+		token = strok(NULL,":");
+	}
+
+	free(temp);
+
+	server -> addr.sin_family = AF_INET;
+	server -> addr.sin_port = htons(atoi(port));
+	free(port);
+
+
+	if(inet_pton(AF_INET,ip,&server->addr.sin_addr) < 1){
+		printf("Erro ao converter IP\n");
+		return NULL;
+	}
+
+	free(ip);
+
+	if((server->socket = socket(AF_INET,SOCK_STREAM,0))< 0){
+		perror("Erro ao criar socket TCP\n");
+		return NULL;
+
+	}
+
+	if(connect(server->socket,(struct sockaddr *)&server->addr,sizeof(struct server_t)) < 0){
+		perror("Erro ao cinectar-se ao servidor\n");
+		close(server->socket);
+		exit(0);
+	}
+
+
+
 	return server;
 }
 
@@ -122,8 +134,17 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Verificar parâmetros de entrada */
 
+	if(server == NULL)
+		return NULL
+
+	if(msg == NULL)
+		return NULL
+
 	/* Serializar a mensagem recebida */
 	message_size = message_to_buffer(msg, &message_out));
+
+	if( !(message_size == -1 && message_size < 2048))
+		return NULL
 
 	/* Verificar se a serialização teve sucesso */
 
@@ -131,13 +152,46 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	   logo de seguida
 	*/
 	msg_size = htonl(message_size);
- 	result = write_all(server->/*atributo*/, (char *) &msg_size, _INT));
+ 	if((result = write_all(server->socket, (char *) &msg_size, _INT))!=_INT){
+ 		perror("Erro ao enviar dados ao servidor");
+ 		close(server->socket);
+ 		return NULL;
+ 	}
+	
+
 
 	/* Verificar se o envio teve sucesso */
 
 	/* Enviar a mensagem que foi previamente serializada */
 
-	result = write_all(server->/*atributo*/, message_out, message_size));
+	if((result = write_all(server->socket, message_out, message_size))!=_INT){
+		perror("Erro ao enviar dados ao servidor");
+ 		close(server->socket);
+ 		return NULL;
+
+
+	}
+	
+
+
+
+	printf("A espera da resposta do servidor... \n");
+	
+
+
+	if((result = read_all(server->sock,(char*)&msg_size,_INT))==0){
+		perror("O servidor desligou-se");
+		close(server -> socket);
+		free(message_out);
+		return NULL;
+
+
+	}else if(result != _INT){
+		perror("Erro ao receber dados do servidor")
+		close(server->socket);
+		free(message_out);
+		return NULL;
+	}
 
 	/* Verificar se o envio teve sucesso */
 
@@ -153,12 +207,29 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 		
 	*/
 
+	message_size = ntohl(msg_size);
 	/* Desserializar a mensagem de resposta */
-	msg_resposta = buffer_to_message( /* */, /* */ );
+	msg_resposta = (struct message_t*) malloc(msg_size);
+	char *message_resposta = malloc(sizeof(char*));
+
+	if((result = read_all(server->socket,message_resposta,msg_size))==0){
+		perror("O servidor desligou-se");
+		close(server->socket);
+		free(message_out);
+		free(message_resposta);
+		free_message(msg_resposta);
+		return NULL;
+	}
+
+
+	if((msg_resposta = buffer_to_message(message_resposta,msg_size))== NULL)
+		return NULL;
+	//msg_resposta = buffer_to_message( /* */, /* */ );
 
 	/* Verificar se a desserialização teve sucesso */
 
 	/* Libertar memória */
+	free(message_out);
 
 	return msg_resposta;
 }
@@ -169,5 +240,13 @@ int network_close(struct server_t *server){
 	/* Terminar ligação ao servidor */
 
 	/* Libertar memória */
+
+	if(server == NULL)
+		return -1;
+
+	close(server-> socket);
+
+	return 0;
+
 }
 

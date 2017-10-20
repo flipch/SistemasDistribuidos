@@ -7,6 +7,10 @@
 struct server_t{
 	/* Atributos importantes para interagir com o servidor, */
 	/* tanto antes da ligação estabelecida, como depois.    */
+	struct sockaddr_in addr;
+	int socket;
+
+
 };
 
 /* Função que garante o envio de len bytes armazenados em buf,
