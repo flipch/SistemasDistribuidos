@@ -6,12 +6,18 @@
 
 #include "message.h"
 
-int main(){
+int testResult()
+{
+    // TO-DO
+}
+
+int main()
+{
     int score = 0;
-    
-        printf("\nIniciando o teste do módulo message\n");
-    
-        score += testResult();
-    
-        printf("Resultados do teste do módulo message: %d em 6\n\n",score);
+
+    printf("\nIniciando o teste do módulo message\n");
+
+    score += testResult();
+
+    printf("Resultados do teste do módulo message: %d em 6\n\n", score);
 }

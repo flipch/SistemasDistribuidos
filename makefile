@@ -46,6 +46,12 @@ test_message.o: $(INCLUDE)message.h $(INCLUDE)data.h $(INCLUDE)entry.h
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/test_message
 
+test_1.o: $(INCLUDE)message.h $(INCLUDE)data.h $(INCLUDE)entry.h
+	$(FLAG) $(SRC)test_1.c -o $(OBJ)test1.o
+
+test_1: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o
+	$(CC) $(OBJ)test_1.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/test_1	
+
 clean:
 	rm $(OBJ)*.o
 	rm bin/*
