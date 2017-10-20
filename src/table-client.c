@@ -9,7 +9,8 @@
 
 #include "network_client-private.h"
 
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
 	struct server_t *server;
 	char input[81];
 	struct message_t *msg_out, *msg_resposta;
@@ -20,7 +21,8 @@ int main(int argc, char **argv){
 	server = network_connect(/* */);
 
 	/* Fazer ciclo até que o utilizador resolva fazer "quit" */
- 	while (/* condição */){
+	while (/* condição */)
+	{
 
 		printf(">>> "); // Mostrar a prompt para inserção de comando
 
@@ -43,8 +45,6 @@ int main(int argc, char **argv){
 			Usar network_send_receive para enviar msg_out para
 			o server e receber msg_resposta.
 		*/
-
 	}
-  	return network_close(server);
+	return network_close(server);
 }
-
