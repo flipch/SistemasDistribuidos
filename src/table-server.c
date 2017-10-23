@@ -7,7 +7,7 @@
 
 #include "inet.h"
 #include "table-private.h"
-#include "message-private.h"
+#include "message.h"
 
 /* Função para preparar uma socket de receção de pedidos de ligação.
 */
@@ -36,7 +36,7 @@ int make_server_socket(short port)
 	if (listen(socket_fd, 0) < 0)
 	{
 		perror("Erro ao executar listen");
-		close(sfd);
+		close(socket_fd);
 		return -1;
 	}
 	return socket_fd;
@@ -56,12 +56,12 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 		return NULL;
 
 	/* Verificar opcode e c_type na mensagem de pedido */
-	if (!(msg_pedido->opcode == OC_SIZE || msg_pedido->opcode == OC_DEL || msg_pedido->opcode == OC_UPDATE || msg_pedido->opcode == OC_GET || msg_pedido->opcode == OC_PUT) ||
+	if (!(msg_pedido->opcode == OC_SIZE || msg_pedido->opcode == OC_COLLS || msg_pedido->opcode == OC_UPDATE || msg_pedido->opcode == OC_GET || msg_pedido->opcode == OC_PUT) ||
 		!(msg_pedido->c_type == CT_RESULT || msg_pedido->c_type == CT_VALUE || msg_pedido->c_type == CT_KEY || msg_pedido->c_type == CT_KEYS || msg_pedido->c_type == CT_ENTRY))
 		return NULL;
 
 	int result;
-	struct data_t data;
+	struct data_t *data = (struct data_t *)malloc(sizeof(struct data_t));
 	char **keys;
 	int dataOrkeys = 0;
 
@@ -75,17 +75,17 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 	}
 	else if (msg_pedido->opcode == OC_GET)
 	{
-		if (strcmp(msg_pedido->content.key, "*") != 0)
-			data = table_get(tabela, msg_pedido->content.key);
+		if (strcmp(msg_pedido->content.key, "*") != 0)	//Porque um *??
+			data = table_get(tabela, msg_pedido->content.key); 
 		else
-		{
+		{	//Este passo ?!
 			keys = table_get_keys(tabela);
 			dataOrkeys = 1;
 		}
 	}
-	else if (msg_pedido->opcode == OC_DEL)
+	else if (msg_pedido->opcode == OC_COLLS)
 	{
-		result = table_del(tabela, msg_pedido->content.key)
+		//TO-DO
 	}
 	else if (msg_pedido->opcode == OC_UPDATE)
 	{
@@ -141,7 +141,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 			msg_resposta->content.keys = keys;
 		}
 	}
-	else if (msg_pedido->opcode == OC_DEL)
+	else if (msg_pedido->opcode == OC_COLLS)
 	{
 		msg_resposta->c_type = CT_RESULT;
 		msg_resposta->content.result = result;

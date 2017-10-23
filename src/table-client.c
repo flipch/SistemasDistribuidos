@@ -8,6 +8,7 @@
 */
 
 #include "network_client-private.h"
+#include "message.h"
 
 int main(int argc, char **argv){
 	struct server_t *server;
@@ -15,10 +16,13 @@ int main(int argc, char **argv){
 	struct message_t *msg_out, *msg_resposta;
 
 	/* Testar os argumentos de entrada */
-	if(argc < 1) 
+	if(argc < 2) {
+		printf("Escreva a porta de conexão\n");
 		return -1;
+	}
+	
 	/* Usar network_connect para estabelcer ligação ao servidor */
-	server = network_connect(/* */);
+	server = network_connect(argv[2]);
 
 	char *token = (char *) malloc(80);
 	/* Fazer ciclo até que o utilizador resolva fazer "quit" */
@@ -77,8 +81,8 @@ int main(int argc, char **argv){
 				count ++;
 				token = strtok(NULL, " ");
 				}
-				msg_out->opcode
-				msg_out->c_type
+				msg_out->opcode = OC_PUT;
+				msg_out->c_type = CT_ENTRY;
 				msg_out->content.entry = entry_create(key,data);
 			}else if (strcmp(token, "get") == 0){
 				token = strtok(NULL, " ");
@@ -102,12 +106,8 @@ int main(int argc, char **argv){
 				msg_out->opcode = OC_UPDATE;
 				msg_out->c_type = CT_ENTRY;
 				msg_out->content.entry = entry_create(key, data);
-			}else if(strcmp(token, "del") == 0){
-				token = strtok(NULL, " ");
-				msg_out->content.key = (char *) malloc(strlen(token));
-				strcpy(msg_out->content.key, token);
-				msg_out->opcode = OC_DEL;
-				msg_out->c_type = CT_KEY;
+			}else if(strcmp(token, "cols") == 0){
+				// TO-DO
 			}else if(strcmp(token, "size") == 0){
 				msg_out->opcode = OC_SIZE;
 				msg_out->c_type = CT_RESULT;
@@ -116,7 +116,7 @@ int main(int argc, char **argv){
 				printf("Introduza um command certo\n");
 				printf("put <key> <data>\n");
 				printf("get <key>\n");
-				printf("del <key>\n");
+				printf("colls \n");
 				printf("update <key> <data>\n");
 				printf("size\n");
 				printf("quit\n");
@@ -148,7 +148,7 @@ void print_message(struct message_t *msg){
 			printf("datasize: %d\n", msg->content.entry->value->datasize);
 		}break;
 		case CT_KEY:{
-			PRINTF("key: %s\n", msg->content.key);
+			printf("key: %s\n", msg->content.key);
 		}break;
 		case CT_KEYS:{
 			for (count = 0; msg->content.keys[count] != NULL; count ++){
