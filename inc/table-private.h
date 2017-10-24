@@ -11,6 +11,7 @@ struct table_t{
     int MAX_SIZE;//tamanho da tabela
     int size; //Elementos inseridos
     struct entry_t *entry;
+    int colls; //Quantas colisoes
 };
 
 #endif

@@ -51,19 +51,6 @@ struct server_t *network_connect(const char *address_port)
 	struct server_t *server = malloc(sizeof(struct server_t));
 
 	/* Verificar parâmetro da função e alocação de memória */
-
-	/* Estabelecer ligação ao servidor:
-
-		Preencher estrutura struct sockaddr_in com dados do
-		endereço do servidor.
-
-		Criar a socket.
-
-		Estabelecer ligação.
-	*/
-
-	/* Se a ligação não foi estabelecida, retornar NULL */
-
 	if (address_port == NULL)
 		return NULL;
 
@@ -94,7 +81,15 @@ struct server_t *network_connect(const char *address_port)
 	}
 
 	free(temp);
+	/* Estabelecer ligação ao servidor:
 
+		Preencher estrutura struct sockaddr_in com dados do
+		endereço do servidor.
+
+		Criar a socket.
+
+		Estabelecer ligação.
+	*/
 	server->addr.sin_family = AF_INET;
 	server->addr.sin_port = htons(atoi(port));
 	free(port);
@@ -107,6 +102,7 @@ struct server_t *network_connect(const char *address_port)
 
 	free(ip);
 
+	/* Se a ligação não foi estabelecida, retornar NULL */
 	if ((server->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		perror("Erro ao criar socket TCP\n");
@@ -115,7 +111,7 @@ struct server_t *network_connect(const char *address_port)
 
 	if (connect(server->socket, (struct sockaddr *)&server->addr, sizeof(struct server_t)) < 0)
 	{
-		perror("Erro ao cinectar-se ao servidor\n");
+		perror("Erro ao conectar-se ao servidor\n");
 		close(server->socket);
 		exit(0);
 	}
@@ -228,15 +224,13 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 int network_close(struct server_t *server)
 {
 	/* Verificar parâmetros de entrada */
-
-	/* Terminar ligação ao servidor */
-
-	/* Libertar memória */
-
 	if (server == NULL)
 		return -1;
 
+	/* Terminar ligação ao servidor */
 	close(server->socket);
-
+	
+	/* Libertar memória */
+	free(server);
 	return 0;
 }

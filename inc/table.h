@@ -37,6 +37,10 @@ struct data_t *table_get(struct table_t *table, char *key);
  */
 int table_size(struct table_t *table);
 
+/* Devolve o número de colisões na tabela.
+ */
+int table_colls(struct table_t *table);
+
 /* Devolve um array de char * com a cópia de todas as keys da tabela,
  * e um último elemento a NULL.
  */

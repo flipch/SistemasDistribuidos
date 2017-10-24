@@ -29,6 +29,13 @@ int main(int argc, char **argv){
  	while (strcmp(token, "quit") != 0){
 		printf(">>> "); // Mostrar a prompt para inserção de comando
 
+		/* Receber o comando introduzido pelo utilizador
+		   Sugestão: usar fgets de stdio.h
+		   Quando pressionamos enter para finalizar a entrada no
+		   comando fgets, o carater \n é incluido antes do \0.
+		   Convém retirar o \n substituindo-o por \0.
+		*/
+
 		fgets(input, 80, stdin);
 		if(input[strlen(input)-1] == '\n')
 			input[strlen(input) -1] = '\0';
@@ -37,22 +44,15 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 
+		/* Verificar se o comando foi "quit". Em caso afirmativo
+		   não há mais nada a fazer a não ser terminar decentemente.
+		*/
+
 		token = strtok(token," ");
 		if(strcmp(token,"quit") == 0){
 			network_close(server);
 			exit(0);
 		}
-
-		/* Receber o comando introduzido pelo utilizador
-		   Sugestão: usar fgets de stdio.h
-		   Quando pressionamos enter para finalizar a entrada no
-		   comando fgets, o carater \n é incluido antes do \0.
-		   Convém retirar o \n substituindo-o por \0.
-		*/
-
-		/* Verificar se o comando foi "quit". Em caso afirmativo
-		   não há mais nada a fazer a não ser terminar decentemente.
-		 */
 		/* Caso contrário:
 
 			Verificar qual o comando;
@@ -62,6 +62,7 @@ int main(int argc, char **argv){
 			Usar network_send_receive para enviar msg_out para
 			o server e receber msg_resposta.
 		*/
+		
 		else{
 			int count = 0;
 			msg_out = (struct message_t*) malloc(sizeof(struct message_t));
@@ -107,7 +108,8 @@ int main(int argc, char **argv){
 				msg_out->c_type = CT_ENTRY;
 				msg_out->content.entry = entry_create(key, data);
 			}else if(strcmp(token, "cols") == 0){
-				// TO-DO
+				msg_out->opcode = OC_COLLS;
+				msg_out->c_type = CT_RESULT;
 			}else if(strcmp(token, "size") == 0){
 				msg_out->opcode = OC_SIZE;
 				msg_out->c_type = CT_RESULT;
