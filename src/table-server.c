@@ -8,6 +8,7 @@
 #include "inet.h"
 #include "table-private.h"
 #include "message.h"
+#include "network_client-private.h"
 
 /* Função para preparar uma socket de receção de pedidos de ligação.
 */
@@ -177,7 +178,6 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	/* Verificar parâmetros de entrada */
 	if (sockfd < 0)
 	{
-		free(sockfd);
 		return -1;
 	}
 
@@ -238,7 +238,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		return -1;
 	}
 	/* Processar a mensagem */
-	msg_resposta = process_message(msg_pedido, tables[msg_pedido->table_num]);
+	msg_resposta = process_message(msg_pedido, &tables[msg_pedido->table_num]);
 
 	/* Serializar a mensagem recebida */
 	message_size = message_to_buffer(msg_resposta, &message_resposta);
@@ -269,13 +269,13 @@ int network_receive_send(int sockfd, struct table_t *tables)
 
 	/* Enviar a mensagem que foi previamente serializada */
 
-	result = write_all(server->socket, message_resposta, message_size));
+	result = write_all(sockfd, message_resposta, message_size);
 
 	/* Verificar se o envio teve sucesso */
 	if (result != message_size)
 	{
 		perror("Erro ao receber dados do cliente");
-		close(server->socket);
+		close(sockfd);
 		free_message(msg_pedido);
 		free_message(msg_resposta);
 		free(message_pedido);
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if ((listening_socket = make_server(atoi(argv[1]))) < 0)
+	if ((listening_socket = make_server_socket(atoi(argv[1]))) < 0)
 		return -1;
 
 	/*********************************************************/
@@ -313,19 +313,21 @@ int main(int argc, char **argv)
 	/*********************************************************/
 
 	int tableCount = argc - 2; // Quantas tabelas menos o nome do programa e da porta
-	int i = 2;				   // Inicio dos tamanhos da tabela no argv
+	int i;					   // Inicio dos tamanhos da tabela no argv
 
-	//*tables = (struct table_t *)malloc(sizeof(struct table_t) * tableCount); //Será necessário ?
+	tables = (struct table_t *) malloc(sizeof(struct table_t) * tableCount); //Será necessário ?
 	int index = 0;
-
-	for (i; i < argc; i++)
+	struct table_t *table = (struct table_t *) malloc(sizeof (struct table_t));
+	for (i = 2; i < argc; i++)
 	{
 		int size = atoi(argv[i]); // Tamanho da tabela
-		if ((tables[index] = table_create(size)) == NULL)
+		table = table_create(size);
+		if ( table == NULL)	//Something wen't wrong
 		{
 			result = close(listening_socket);
 			return -1;
 		}
+		tables[index] = *table;
 		index++;
 	}
 
@@ -339,7 +341,7 @@ int main(int argc, char **argv)
 		{
 
 			/* Fazer ciclo de pedido e resposta */
-			resposta = network_receive_send(connsock, tables) < 0);
+			resposta = network_receive_send(connsock, tables);
 
 			/* Ciclo feito com sucesso ? Houve erro?
 			   Cliente desligou? */
@@ -347,4 +349,6 @@ int main(int argc, char **argv)
 				break;
 		}
 	}
+	result = 0;
+	return result;
 }
