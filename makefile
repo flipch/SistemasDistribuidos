@@ -39,6 +39,12 @@ test_message.o: $(INCLUDE)message.h $(INCLUDE)data.h $(INCLUDE)entry.h
 
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/test_message
+	
+network_client: $(OBJ)network_client.o $(OBJ)message.o
+    $(CC) $(OBJ) network_client.o 
+
+network_client.o:$(INCLUDE)network_client-private.h $(INCLUDE)network_client.h
+    $(FLAG) $(SRC)network_client.c -o $(OBJ)network_client.o
 
 clean:
 	rm $(OBJ)*.o
