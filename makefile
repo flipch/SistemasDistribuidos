@@ -8,7 +8,7 @@ OBJ = obj/
 SRC = src/
 FLAG = gcc -g -Wall -Iinc/ -c
 
-all : table-client.o table-server.o table-client table-server test_message.o test_message
+all : table-client.o table-server.o table-client table-server test_message.o test_message network_client.o
 
 data.o: $(INCLUDE)data.h
 	$(FLAG) $(SRC)data.c -o $(OBJ)data.o
@@ -22,10 +22,13 @@ table.o: $(INCLUDE)table-private.h $(INCLUDE)table.h $(INCLUDE)entry.h $(INCLUDE
 message.o: $(INCLUDE)message.h $(INCLUDE)entry.h
 	$(FLAG) $(SRC)message.c -o $(OBJ)message.o
 
-table-server.o: $(INCLUDE)inet.h $(INCLUDE)table-private.h
+table-server.o: $(INCLUDE)inet.h $(INCLUDE)table-private.h $(INCLUDE)message.h
 	$(FLAG) $(SRC)table-server.c -o $(OBJ)table-server.o
 
-table-client.o: $(INCLUDE)network_client-private.h
+network_client.o: $(INCLUDE)network_client-private.h $(INCLUDE)network_client.h 
+	$(FLAG) $(SRC)network_client.c -o $(OBJ)network_client.o
+
+table-client.o: $(INCLUDE)network_client-private.h $(INCLUDE)message.h
 	$(FLAG) $(SRC)table-client.c -o $(OBJ)table-client.o
 
 table-server: $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)table.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o
@@ -39,12 +42,8 @@ test_message.o: $(INCLUDE)message.h $(INCLUDE)data.h $(INCLUDE)entry.h
 
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/test_message
-	
-network_client: $(OBJ)network_client.o $(OBJ)message.o
-    $(CC) $(OBJ) network_client.o 
 
-network_client.o:$(INCLUDE)network_client-private.h $(INCLUDE)network_client.h
-    $(FLAG) $(SRC)network_client.c -o $(OBJ)network_client.o
+
 
 clean:
 	rm $(OBJ)*.o
