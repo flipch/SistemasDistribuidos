@@ -1,3 +1,7 @@
+//Grupo 51: Felipe Heliszkowski 47064
+//Gonçalo Cardoso 46784
+//Pedro Gama 47081
+
 /*
    Programa que implementa um servidor de uma tabela hash com chainning.
    Uso: table-server <port> <table1_size> [<table2_size> ...]
@@ -9,6 +13,38 @@
 #include "table-private.h"
 #include "message.h"
 #include "network_client-private.h"
+void print_message(struct message_t *msg) {
+    int i;
+    
+    printf("\n----- MESSAGE -----\n");
+    printf("Tabela número: %d\n", msg->table_num);
+    printf("opcode: %d, c_type: %d\n", msg->opcode, msg->c_type);
+    switch(msg->c_type) {
+        case CT_ENTRY:{
+            printf("key: %s\n", msg->content.entry->key);
+            printf("datasize: %d\n", msg->content.entry->value->datasize);
+        }break;
+        case CT_KEY:{
+            printf("key: %s\n", msg->content.key);
+        }break;
+        case CT_KEYS:{
+            for(i = 0; msg->content.keys[i] != NULL; i++) {
+                printf("key[%d]: %s\n", i, msg->content.keys[i]);
+            }
+        }break;
+        case CT_VALUE:{
+            printf("datasize: %d\n", msg->content.data->datasize);
+        }break;
+        case CT_RESULT:{
+            printf("result: %d\n", msg->content.result);
+        }break;
+        case OC_RT_ERROR:{
+            printf("result: %d\n", msg->content.result);
+        };
+    }
+    printf("-------------------\n");
+}
+
 
 /* Função para preparar uma socket de receção de pedidos de ligação.
 */
@@ -61,7 +97,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 		!(msg_pedido->c_type == CT_RESULT || msg_pedido->c_type == CT_VALUE || msg_pedido->c_type == CT_KEY || msg_pedido->c_type == CT_KEYS || msg_pedido->c_type == CT_ENTRY))
 		return NULL;
 
-	int result;
+	int result = 0;
 	struct data_t *data = (struct data_t *)malloc(sizeof(struct data_t));
 	char **keys;
 	int dataOrkeys = 0;
@@ -171,7 +207,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 int network_receive_send(int sockfd, struct table_t *tables)
 {
 	char *message_resposta, *message_pedido;
-	int msg_length;
+	//int msg_length;
 	int message_size, msg_size, result;
 	struct message_t *msg_pedido, *msg_resposta;
 

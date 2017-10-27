@@ -1,3 +1,6 @@
+//Grupo 51: Felipe Heliszkowski 47064
+//Gonçalo Cardoso 46784
+//Pedro Gama 47081
 /*
 	Programa cliente para manipular tabela de hash remota.
 	Os comandos introduzido no programa não deverão exceder
@@ -10,44 +13,36 @@
 #include "network_client-private.h"
 #include "message.h"
 
-void print_message(struct message_t *msg)
-{
-	int count;
-
-	printf("##### Message #####\n");
-	printf("opcode: %d, c_type:%d\n", msg->opcode, msg->c_type);
-	switch (msg->c_type)
-	{
-	case CT_ENTRY:
-	{
-		printf("key: %s\n", msg->content.entry->key);
-		printf("datasize: %d\n", msg->content.entry->value->datasize);
-	}
-	break;
-	case CT_KEY:
-	{
-		printf("key: %s\n", msg->content.key);
-	}
-	break;
-	case CT_KEYS:
-	{
-		for (count = 0; msg->content.keys[count] != NULL; count++)
-		{
-			printf("key[%d]: %s\n", count, msg->content.keys[count]);
-		}
-	}
-	break;
-	case CT_VALUE:
-	{
-		printf("datasize: %d\n", msg->content.data->datasize);
-	}
-	break;
-	case CT_RESULT:
-	{
-		printf("result: %d\n", msg->content.result);
-	};
-	}
-	printf("####################\n");
+void print_message(struct message_t *msg) {
+    int i;
+    
+    printf("\n----- MESSAGE -----\n");
+    printf("Tabela número: %d\n", msg->table_num);
+    printf("opcode: %d, c_type: %d\n", msg->opcode, msg->c_type);
+    switch(msg->c_type) {
+        case CT_ENTRY:{
+            printf("key: %s\n", msg->content.entry->key);
+            printf("datasize: %d\n", msg->content.entry->value->datasize);
+        }break;
+        case CT_KEY:{
+            printf("key: %s\n", msg->content.key);
+        }break;
+        case CT_KEYS:{
+            for(i = 0; msg->content.keys[i] != NULL; i++) {
+                printf("key[%d]: %s\n", i, msg->content.keys[i]);
+            }
+        }break;
+        case CT_VALUE:{
+            printf("datasize: %d\n", msg->content.data->datasize);
+        }break;
+        case CT_RESULT:{
+            printf("result: %d\n", msg->content.result);
+        }break;
+        case OC_RT_ERROR:{
+            printf("result: %d\n", msg->content.result);
+        };
+    }
+    printf("-------------------\n");
 }
 
 int main(int argc, char **argv)
@@ -82,6 +77,7 @@ int main(int argc, char **argv)
 		fgets(input, 80, stdin);
 		if (input[strlen(input) - 1] == '\n')
 			input[strlen(input) - 1] = '\0';
+		
 		if (input == NULL)
 		{
 			printf("Escreva um comando no terminal");
