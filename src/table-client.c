@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 		   não há mais nada a fazer a não ser terminar decentemente.
 		*/
 
-        token = strtok(token, " ");
+        token = strtok(input, " ");
         if (strcmp(token, "quit") == 0)
         {
             network_close(server);
