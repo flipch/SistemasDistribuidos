@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         fgets(input, 80, stdin);
         if (input[strlen(input) - 1] == '\n')
             input[strlen(input) - 1] = '\0';
-        if (strcmp(input, "")
+        if (strcmp(input, ""))
         {
             printf("Escreva um comando no terminal");
             exit(0);
