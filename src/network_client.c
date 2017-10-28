@@ -1,6 +1,13 @@
-#include "network_client-private.h"
+//Grupo 51: Felipe Heliszkowski 47064
+//Gonçalo Cardoso 46784
+//Pedro Gama 47081
 
+#include "network_client-private.h"
+#include "inet.h"
 #include <stdlib.h>
+#include <ctype.h>
+#include <errno.h>
+#include <message.h>
 
 int write_all(int sock, char *buf, int len)
 {
@@ -8,13 +15,13 @@ int write_all(int sock, char *buf, int len)
 	int buffersize = len;
 	while (len > 0)
 	{
-		int result = write(sock, buf, len);
-		if (result < 0)
+		int res = write(sock, buf, len);
+		if (res < 0)
 		{
-			if (erno == EINR)
+			if (errno == EINTR)
 				continue;
 			perror("write failed: ");
-			return result;
+			return res;
 		}
 		buf += res;
 		len -= res;
@@ -33,14 +40,14 @@ int read_all(int sock, char *buf, int len)
 
 		if (result < 0)
 		{
-			if (errno == EINR)
+			if (errno == EINTR)
 				continue;
 			perror("read failed: ");
 			return result;
 		}
 
-		buf += res;
-		len -= res;
+		buf += result;
+		len -= result;
 	}
 
 	return buffersize;
@@ -48,74 +55,55 @@ int read_all(int sock, char *buf, int len)
 
 struct server_t *network_connect(const char *address_port)
 {
-	struct server_t *server = malloc(sizeof(struct server_t));
-
 	/* Verificar parâmetro da função e alocação de memória */
 	if (address_port == NULL)
 		return NULL;
 
+	char *cAddress_port = strdup(address_port);
+
+	char *separator = strchr(cAddress_port, ':');
+	*separator = '\0';
+
+	char *address = cAddress_port;
+	char *port = strdup(separator + 1);
+
+	struct server_t *server = malloc(sizeof(struct server_t));
 	if (server == NULL)
-		return NULL;
-
-	char *temp = malloc(strlen(address_port));
-	char *ip = malloc(sizeof(char) * sizeof(long));
-	char *port = malloc(sizeof(char) * sizeof(short));
-	strcpy(temp, address_port);
-
-	//copia do endereço de porto e o seu split para obter tanto o seu endereço como o porto
-	char *enderecoPorto = strdup(address_port);
-	char *endereco = strok(enderecoPorto, ":");
-	char *porto = strok(NULL, "\0");
-
-	char *token = strok(temp, ":");
-
-	int i = 0;
-	while (token != NULL)
 	{
-		if (i == 0)
-			stcpy(ip, token);
-		if (i == 1)
-			strcpy(port, token);
-		i++;
-		token = strok(NULL, ":");
-	}
-
-	free(temp);
-	/* Estabelecer ligação ao servidor:
-
-		Preencher estrutura struct sockaddr_in com dados do
-		endereço do servidor.
-
-		Criar a socket.
-
-		Estabelecer ligação.
-	*/
-	server->addr.sin_family = AF_INET;
-	server->addr.sin_port = htons(atoi(port));
-	free(port);
-
-	if (inet_pton(AF_INET, ip, &server->addr.sin_addr) < 1)
-	{
-		printf("Erro ao converter IP\n");
+		free(cAddress_port);
 		return NULL;
 	}
 
-	free(ip);
-
-	/* Se a ligação não foi estabelecida, retornar NULL */
+	// Cria socket TCP
 	if ((server->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		perror("Erro ao criar socket TCP\n");
+		perror("Erro ao criar socket");
+		free(server);
+		free(cAddress_port);
+		return NULL;
+	}
+	// Preenche estrutura server para estabelecer conexão
+	server->addr.sin_family = AF_INET;
+	server->addr.sin_port = htons(atoi(port));
+	if (inet_pton(AF_INET, address, &server->addr.sin_addr) < 1)
+	{
+		printf("Erro ao converter IP\n");
+		free(cAddress_port);
+		close(server->socket);
+		free(server);
+		return NULL;
+	}
+	// Estabelece conexão com o servidor definido em server
+	if (connect(server->socket, (struct sockaddr *)&server->addr, sizeof(server->addr)) < 0)
+	{
+		perror("Erro ao conectar-se ao servidor");
+		free(cAddress_port);
+		close(server->socket);
+		free(server);
 		return NULL;
 	}
 
-	if (connect(server->socket, (struct sockaddr *)&server->addr, sizeof(struct server_t)) < 0)
-	{
-		perror("Erro ao conectar-se ao servidor\n");
-		close(server->socket);
-		exit(0);
-	}
-
+	free(cAddress_port);
 	return server;
 }
 
@@ -123,32 +111,32 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 {
 	char *message_out;
 	int message_size, msg_size, result;
-	struct message_t msg_resposta;
+	struct message_t *msg_resposta;
 
 	/* Verificar parâmetros de entrada */
 
 	if (server == NULL)
-		return NULL
+		return NULL;
 
-	if(msg == NULL)
-		return NULL
+	if (msg == NULL)
+		return NULL;
 
 	/* Serializar a mensagem recebida */
-	message_size = message_to_buffer(msg, &message_out));
+	message_size = message_to_buffer(msg, &message_out);
 
 	if (!(message_size == -1 && message_size < 2048))
-		return NULL
+		return NULL;
 
-			   /* Verificar se a serialização teve sucesso */
+	/* Verificar se a serialização teve sucesso */
 
-			   /* Enviar ao servidor o tamanho da mensagem que será enviada
+	/* Enviar ao servidor o tamanho da mensagem que será enviada
 	   logo de seguida
 	*/
-			   msg_size = htonl(message_size);
+	msg_size = htonl(message_size);
 	if ((result = write_all(server->socket, (char *)&msg_size, _INT)) != _INT)
 	{
 		perror("Erro ao enviar dados ao servidor");
-		close(server->socket);
+		network_close(server);
 		return NULL;
 	}
 
@@ -159,23 +147,23 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	if ((result = write_all(server->socket, message_out, message_size)) != _INT)
 	{
 		perror("Erro ao enviar dados ao servidor");
-		close(server->socket);
+		network_close(server);
 		return NULL;
 	}
 
 	printf("A espera da resposta do servidor... \n");
 
-	if ((result = read_all(server->sock, (char *)&msg_size, _INT)) == 0)
+	if ((result = read_all(server->socket, (char *)&msg_size, _INT)) == 0)
 	{
 		perror("O servidor desligou-se");
-		close(server->socket);
+		network_close(server);
 		free(message_out);
 		return NULL;
 	}
 	else if (result != _INT)
 	{
-		perror("Erro ao receber dados do servidor")
-			close(server->socket);
+		perror("Erro ao receber dados do servidor");
+		network_close(server);
 		free(message_out);
 		return NULL;
 	}
@@ -202,7 +190,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	if ((result = read_all(server->socket, message_resposta, msg_size)) == 0)
 	{
 		perror("O servidor desligou-se");
-		close(server->socket);
+		network_close(server);
 		free(message_out);
 		free(message_resposta);
 		free_message(msg_resposta);
@@ -224,13 +212,18 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 int network_close(struct server_t *server)
 {
 	/* Verificar parâmetros de entrada */
+	int retorna = 0;
 	if (server == NULL)
-		return -1;
-
+	{
+		free(server);
+		return retorna;
+	}
 	/* Terminar ligação ao servidor */
-	close(server->socket);
-	
+	if (close(server->socket) < 0)
+	{
+		retorna = 1;
+	}
+	return retorna;
+
 	/* Libertar memória */
-	free(server);
-	return 0;
 }

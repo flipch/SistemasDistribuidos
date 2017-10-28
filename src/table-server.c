@@ -13,6 +13,7 @@
 #include "table-private.h"
 #include "message.h"
 #include "network_client-private.h"
+
 void print_message(struct message_t *msg) {
     int i;
     
@@ -70,7 +71,7 @@ int make_server_socket(short port)
 		return -1;
 	}
 
-	if (listen(socket_fd, 0) < 0)
+	if (listen(socket_fd, 1) < 0)
 	{
 		perror("Erro ao executar listen");
 		close(socket_fd);
