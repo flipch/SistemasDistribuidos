@@ -82,10 +82,9 @@ int main(int argc, char **argv)
         fgets(input, 80, stdin);
         if (input[strlen(input) - 1] == '\n')
             input[strlen(input) - 1] = '\0';
-        if (strcmp(input, ""))
+        if (strcmp(input, "") <= 0)
         {
-            printf("Escreva um comando no terminal");
-            exit(0);
+            printf("Escreva um comando no terminal\n");
         }
 
         /* Verificar se o comando foi "quit". Em caso afirmativo
@@ -117,6 +116,7 @@ int main(int argc, char **argv)
             if (strcmp(token, "put") == 0)
             {
                 token = strtok(NULL, " ");
+                short tableNum = -1;
                 char *key;
                 struct data_t *data;
                 while (token != NULL)
@@ -128,12 +128,19 @@ int main(int argc, char **argv)
                         strcat(key, "");
                     }
                     else if (count == 1)
+                    {
                         data = data_create2(sizeof(token), token);
+                    }
+                    else if (count == 3)
+                    {
+                        tableNum = atoi(token);
+                    }
                     count++;
                     token = strtok(NULL, " ");
                 }
                 msg_out->opcode = OC_PUT;
                 msg_out->c_type = CT_ENTRY;
+                msg_out->table_num = tableNum;
                 struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
                 if (entry == NULL)
                 { //Malloc failed?
@@ -146,15 +153,20 @@ int main(int argc, char **argv)
             }
             else if (strcmp(token, "get") == 0)
             {
+                short tableNum = -1;
                 token = strtok(NULL, " ");
                 msg_out->content.key = (char *)malloc(strlen(token));
                 strcpy(msg_out->content.key, token);
+                token = strtok(NULL, " ");
+                tableNum = atoi(token);
+                msg_out->table_num = tableNum;
                 msg_out->opcode = OC_GET;
                 msg_out->c_type = CT_KEY;
             }
             else if (strcmp(token, "update") == 0)
             {
                 char *key;
+                short tableNum = -1;
                 struct data_t *data;
                 token = strtok(NULL, " ");
                 while (token != NULL)
@@ -169,6 +181,9 @@ int main(int argc, char **argv)
                     count++;
                     token = strtok(NULL, " ");
                 }
+                token = strtok(NULL, " ");
+                tableNum = atoi(token);
+                msg_out->table_num = tableNum;
                 msg_out->opcode = OC_UPDATE;
                 msg_out->c_type = CT_ENTRY;
                 struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
@@ -181,13 +196,21 @@ int main(int argc, char **argv)
                 entry->value = data;
                 msg_out->content.entry = entry;
             }
-            else if (strcmp(token, "cols") == 0)
+            else if (strcmp(token, "colls") == 0)
             {
+                short tableNum = -1;
+                token = strtok(NULL, " ");
+                tableNum = atoi(token);
+                msg_out->table_num = tableNum;
                 msg_out->opcode = OC_COLLS;
                 msg_out->c_type = CT_RESULT;
             }
             else if (strcmp(token, "size") == 0)
             {
+                short tableNum = -1;
+                token = strtok(NULL, " ");
+                tableNum = atoi(token);
+                msg_out->table_num = tableNum;
                 msg_out->opcode = OC_SIZE;
                 msg_out->c_type = CT_RESULT;
             }
@@ -195,11 +218,11 @@ int main(int argc, char **argv)
             {
                 fail = 1;
                 printf("Introduza um command certo\n");
-                printf("put <key> <data>\n");
-                printf("get <key>\n");
-                printf("colls \n");
-                printf("update <key> <data>\n");
-                printf("size\n");
+                printf("put <key> <data> <table>\n");
+                printf("get <key> <table>\n");
+                printf("colls <table>\n");
+                printf("update <key> <data> <table>\n");
+                printf("size <table>\n");
                 printf("quit\n");
             }
             if (fail == 0)

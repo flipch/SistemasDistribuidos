@@ -124,10 +124,8 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	/* Serializar a mensagem recebida */
 	message_size = message_to_buffer(msg, &message_out);
 
-	if (!(message_size == -1 && message_size < 2048))
-		return NULL;
-
 	/* Verificar se a serialização teve sucesso */
+	//TO-DO
 
 	/* Enviar ao servidor o tamanho da mensagem que será enviada
 	   logo de seguida
@@ -144,12 +142,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Enviar a mensagem que foi previamente serializada */
 
-	if ((result = write_all(server->socket, message_out, message_size)) != _INT)
-	{
-		perror("Erro ao enviar dados ao servidor");
-		network_close(server);
-		return NULL;
-	}
+	write_all(server->socket, message_out, message_size);	
 
 	printf("A espera da resposta do servidor... \n");
 
@@ -187,20 +180,9 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	msg_resposta = (struct message_t *)malloc(msg_size);
 	char *message_resposta = malloc(sizeof(char *));
 
-	if ((result = read_all(server->socket, message_resposta, msg_size)) == 0)
-	{
-		perror("O servidor desligou-se");
-		network_close(server);
-		free(message_out);
-		free(message_resposta);
-		free_message(msg_resposta);
-		return NULL;
-	}
-
-	if ((msg_resposta = buffer_to_message(message_resposta, msg_size)) == NULL)
-		return NULL;
-	//msg_resposta = buffer_to_message( /* */, /* */ );
-
+	result = read_all(server->socket, message_resposta, msg_size);
+	
+	msg_resposta = buffer_to_message(message_resposta, msg_size);
 	/* Verificar se a desserialização teve sucesso */
 
 	/* Libertar memória */
