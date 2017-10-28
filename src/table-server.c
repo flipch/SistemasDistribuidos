@@ -382,8 +382,10 @@ int main(int argc, char **argv)
 
 			/* Ciclo feito com sucesso ? Houve erro?
 			   Cliente desligou? */
-			if (resposta < 1)
+			if (resposta < 1){
+				printf(" * Client disconnected!\n");
 				break;
+			}
 		}
 	}
 	result = 0;
