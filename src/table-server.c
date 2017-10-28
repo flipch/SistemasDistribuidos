@@ -14,38 +14,51 @@
 #include "message.h"
 #include "network_client-private.h"
 
-void print_message(struct message_t *msg) {
-    int i;
-    
-    printf("\n----- MESSAGE -----\n");
-    printf("Tabela número: %d\n", msg->table_num);
-    printf("opcode: %d, c_type: %d\n", msg->opcode, msg->c_type);
-    switch(msg->c_type) {
-        case CT_ENTRY:{
-            printf("key: %s\n", msg->content.entry->key);
-            printf("datasize: %d\n", msg->content.entry->value->datasize);
-        }break;
-        case CT_KEY:{
-            printf("key: %s\n", msg->content.key);
-        }break;
-        case CT_KEYS:{
-            for(i = 0; msg->content.keys[i] != NULL; i++) {
-                printf("key[%d]: %s\n", i, msg->content.keys[i]);
-            }
-        }break;
-        case CT_VALUE:{
-            printf("datasize: %d\n", msg->content.data->datasize);
-        }break;
-        case CT_RESULT:{
-            printf("result: %d\n", msg->content.result);
-        }break;
-        case OC_RT_ERROR:{
-            printf("result: %d\n", msg->content.result);
-        };
-    }
-    printf("-------------------\n");
-}
+void print_message(struct message_t *msg)
+{
+	int i;
 
+	printf("\n----- MESSAGE -----\n");
+	printf("Tabela número: %d\n", msg->table_num);
+	printf("opcode: %d, c_type: %d\n", msg->opcode, msg->c_type);
+	switch (msg->c_type)
+	{
+	case CT_ENTRY:
+	{
+		printf("key: %s\n", msg->content.entry->key);
+		printf("datasize: %d\n", msg->content.entry->value->datasize);
+	}
+	break;
+	case CT_KEY:
+	{
+		printf("key: %s\n", msg->content.key);
+	}
+	break;
+	case CT_KEYS:
+	{
+		for (i = 0; msg->content.keys[i] != NULL; i++)
+		{
+			printf("key[%d]: %s\n", i, msg->content.keys[i]);
+		}
+	}
+	break;
+	case CT_VALUE:
+	{
+		printf("datasize: %d\n", msg->content.data->datasize);
+	}
+	break;
+	case CT_RESULT:
+	{
+		printf("result: %d\n", msg->content.result);
+	}
+	break;
+	case OC_RT_ERROR:
+	{
+		printf("result: %d\n", msg->content.result);
+	};
+	}
+	printf("-------------------\n");
+}
 
 /* Função para preparar uma socket de receção de pedidos de ligação.
 */
@@ -352,14 +365,14 @@ int main(int argc, char **argv)
 	int tableCount = argc - 2; // Quantas tabelas menos o nome do programa e da porta
 	int i;					   // Inicio dos tamanhos da tabela no argv
 
-	tables = (struct table_t *) malloc(sizeof(struct table_t) * tableCount); //Será necessário ?
+	tables = (struct table_t *)malloc(sizeof(struct table_t) * tableCount); //Será necessário ?
 	int index = 0;
-	struct table_t *table = (struct table_t *) malloc(sizeof (struct table_t));
+	struct table_t *table = (struct table_t *)malloc(sizeof(struct table_t));
 	for (i = 2; i < argc; i++)
 	{
 		int size = atoi(argv[i]); // Tamanho da tabela
 		table = table_create(size);
-		if ( table == NULL)	//Something wen't wrong
+		if (table == NULL) //Something wen't wrong
 		{
 			result = close(listening_socket);
 			return -1;
@@ -368,24 +381,28 @@ int main(int argc, char **argv)
 		index++;
 	}
 
-	int resposta = 1;
+	int resposta = 0;
 
 	while ((connsock = accept(listening_socket, (struct sockaddr *)&client, &size_client)) != -1)
 	{
 		printf(" * Client is connected!\n");
 
-		while (resposta == 1)
+		while (resposta == 0)
 		{
-
 			/* Fazer ciclo de pedido e resposta */
-			resposta = network_receive_send(connsock, tables);
-
-			/* Ciclo feito com sucesso ? Houve erro?
-			   Cliente desligou? */
-			if (resposta < 1){
-				printf(" * Client disconnected!\n");
-				break;
+			if ((resposta = network_receive_send(connsock, tables)) != 0)
+			{
+				resposta = 1;
 			}
+		}
+		/* Ciclo feito com sucesso ? Houve erro?
+			   Cliente desligou? 
+		*/
+		if (resposta > 0)
+		{
+			result = close(connsock);
+			printf(" * Client disconnected!\n");
+			break;
 		}
 	}
 	result = 0;

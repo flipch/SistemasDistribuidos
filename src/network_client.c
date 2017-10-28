@@ -38,7 +38,7 @@ int read_all(int sock, char *buf, int len)
 	{
 		int result = read(sock, buf, len);
 
-		if (result < 0)
+		if (result <= 0)
 		{
 			if (errno == EINTR)
 				continue;
@@ -180,9 +180,9 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	msg_resposta = (struct message_t *)malloc(msg_size);
 	char *message_resposta = malloc(sizeof(char *));
 
-	result = read_all(server->socket, message_resposta, msg_size);
+	result = read_all(server->socket, message_resposta, message_size);
 	
-	msg_resposta = buffer_to_message(message_resposta, msg_size);
+	msg_resposta = buffer_to_message(message_resposta, message_size);
 	/* Verificar se a desserialização teve sucesso */
 
 	/* Libertar memória */
