@@ -139,7 +139,7 @@ int main(int argc, char **argv)
                     token = strtok(NULL, " ");
                 }
                 if (count != 3) // Um dos tokens nao foi inserido
-                {   
+                {
                     printf("Insira todos os argumentos necessários\n");
                     fail = 1;
                 }
@@ -167,9 +167,17 @@ int main(int argc, char **argv)
                 strcpy(msg_out->content.key, token);
                 token = strtok(NULL, " ");
                 tableNum = atoi(token);
-                msg_out->table_num = tableNum;
-                msg_out->opcode = OC_GET;
-                msg_out->c_type = CT_KEY;
+                if (tableNum == -1)
+                {
+                    printf("Insira todos os argumentos necessários\n");
+                    fail = 1;
+                }
+                else
+                {
+                    msg_out->table_num = tableNum;
+                    msg_out->opcode = OC_GET;
+                    msg_out->c_type = CT_KEY;
+                }
             }
             else if (strcmp(token, "update") == 0)
             {
@@ -191,41 +199,64 @@ int main(int argc, char **argv)
                     token = strtok(NULL, " ");
                     count++;
                 }
-                msg_out->table_num = tableNum;
-                msg_out->opcode = OC_UPDATE;
-                msg_out->c_type = CT_ENTRY;
-                struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
-                if (entry == NULL)
-                { //Malloc failed?
-                    free(entry);
-                    return -1;
+                if (count != 3) // Um dos tokens nao foi inserido
+                {
+                    printf("Insira todos os argumentos necessários\n");
+                    fail = 1;
                 }
-                entry->key = key;
-                entry->value = data;
-                msg_out->content.entry = entry;
+                else
+                {
+                    msg_out->table_num = tableNum;
+                    msg_out->opcode = OC_UPDATE;
+                    msg_out->c_type = CT_ENTRY;
+                    struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
+                    if (entry == NULL)
+                    { //Malloc failed?
+                        free(entry);
+                        return -1;
+                    }
+                    entry->key = key;
+                    entry->value = data;
+                    msg_out->content.entry = entry;
+                }
             }
             else if (strcmp(token, "colls") == 0)
             {
                 short tableNum = -1;
                 token = strtok(NULL, " ");
                 tableNum = atoi(token);
-                msg_out->table_num = tableNum;
-                msg_out->opcode = OC_COLLS;
-                msg_out->c_type = CT_RESULT;
+                if (tableNum == -1)
+                {
+                    printf("Insira todos os argumentos necessários\n");
+                    fail = 1;
+                }
+                else
+                {
+                    msg_out->table_num = tableNum;
+                    msg_out->opcode = OC_COLLS;
+                    msg_out->c_type = CT_RESULT;
+                }
             }
             else if (strcmp(token, "size") == 0)
             {
                 short tableNum = -1;
                 token = strtok(NULL, " ");
                 tableNum = atoi(token);
-                msg_out->table_num = tableNum;
-                msg_out->opcode = OC_SIZE;
-                msg_out->c_type = CT_RESULT;
+                if (tableNum == -1)
+                {
+                    printf("Insira todos os argumentos necessários\n");
+                    fail = 1;
+                }
+                else
+                {
+                    msg_out->table_num = tableNum;
+                    msg_out->opcode = OC_SIZE;
+                    msg_out->c_type = CT_RESULT;
+                }
             }
             else
             {
                 fail = 1;
-
             }
             if (fail == 0)
             {
@@ -239,7 +270,8 @@ int main(int argc, char **argv)
                 print_message(msg_resposta);
                 free_message(msg_out);
             }
-            else if ( fail == 1){
+            else if (fail == 1)
+            {
                 printf("--------------------------\n");
                 printf("Introduza um comando certo\n");
                 printf("put <key> <data> <table>\n");
