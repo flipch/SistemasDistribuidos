@@ -103,7 +103,9 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 
 	/* Verificar parâmetros de entrada */
 
-	if (msg_pedido == NULL || tabela == NULL)
+	if (msg_pedido == NULL)
+		return NULL;
+	if (tabela == NULL)
 		return NULL;
 
 	/* Verificar opcode e c_type na mensagem de pedido */
@@ -119,17 +121,14 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 	/* Aplicar operação na tabela */
 	if (msg_pedido->opcode == OC_PUT)
 	{
-		if (table_get(tabela, msg_pedido->content.entry->key) == NULL)
-			result = table_put(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
-		else
-			result = -1;
+		result = table_put(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
 	}
 	else if (msg_pedido->opcode == OC_GET)
 	{
-		if (strcmp(msg_pedido->content.key, "*") != 0) //Porque um *??
+		if (strcmp(msg_pedido->content.key, "*") != 0) //Caso normal
 			data = table_get(tabela, msg_pedido->content.key);
 		else
-		{ //Este passo ?!
+		{ // Pega tudo
 			keys = table_get_keys(tabela);
 			dataOrkeys = 1;
 		}
@@ -140,10 +139,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 	}
 	else if (msg_pedido->opcode == OC_UPDATE)
 	{
-		if (table_get(tabela, msg_pedido->content.key) != NULL)
-			result = table_update(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
-		else
-			result = -1;
+		result = table_update(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
 	}
 	else if (msg_pedido->opcode == OC_SIZE)
 	{

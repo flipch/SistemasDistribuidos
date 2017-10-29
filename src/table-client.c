@@ -131,25 +131,33 @@ int main(int argc, char **argv)
                     {
                         data = data_create2(sizeof(token), token);
                     }
-                    else if (count == 3)
+                    else if (count == 2)
                     {
                         tableNum = atoi(token);
                     }
                     count++;
                     token = strtok(NULL, " ");
                 }
-                msg_out->opcode = OC_PUT;
-                msg_out->c_type = CT_ENTRY;
-                msg_out->table_num = tableNum;
-                struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
-                if (entry == NULL)
-                { //Malloc failed?
-                    free(entry);
-                    return -1;
+                if (count != 3) // Um dos tokens nao foi inserido
+                {   
+                    printf("Insira todos os argumentos necessários\n");
+                    fail = 1;
                 }
-                entry->key = key;
-                entry->value = data;
-                msg_out->content.entry = entry;
+                else
+                {
+                    msg_out->opcode = OC_PUT;
+                    msg_out->c_type = CT_ENTRY;
+                    msg_out->table_num = tableNum;
+                    struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
+                    if (entry == NULL)
+                    { //Malloc failed?
+                        free(entry);
+                        return -1;
+                    }
+                    entry->key = key;
+                    entry->value = data;
+                    msg_out->content.entry = entry;
+                }
             }
             else if (strcmp(token, "get") == 0)
             {
@@ -178,11 +186,11 @@ int main(int argc, char **argv)
                     }
                     else if (count == 1)
                         data = data_create2(sizeof(token), token);
-                    count++;
+                    else if (count == 2)
+                        tableNum = atoi(token);
                     token = strtok(NULL, " ");
+                    count++;
                 }
-                token = strtok(NULL, " ");
-                tableNum = atoi(token);
                 msg_out->table_num = tableNum;
                 msg_out->opcode = OC_UPDATE;
                 msg_out->c_type = CT_ENTRY;
@@ -217,13 +225,7 @@ int main(int argc, char **argv)
             else
             {
                 fail = 1;
-                printf("Introduza um command certo\n");
-                printf("put <key> <data> <table>\n");
-                printf("get <key> <table>\n");
-                printf("colls <table>\n");
-                printf("update <key> <data> <table>\n");
-                printf("size <table>\n");
-                printf("quit\n");
+
             }
             if (fail == 0)
             {
@@ -236,6 +238,17 @@ int main(int argc, char **argv)
                 count = 0;
                 print_message(msg_resposta);
                 free_message(msg_out);
+            }
+            else if ( fail == 1){
+                printf("--------------------------\n");
+                printf("Introduza um comando certo\n");
+                printf("put <key> <data> <table>\n");
+                printf("get <key> <table>\n");
+                printf("colls <table>\n");
+                printf("update <key> <data> <table>\n");
+                printf("size <table>\n");
+                printf("quit\n");
+                printf("--------------------------\n");
             }
             token = (char *)malloc(80);
         }

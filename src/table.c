@@ -109,6 +109,7 @@ int table_put(struct table_t *table, char *key, struct data_t *value)
   }
   else
   {
+    table->colls++;
     if (strcmp(table->entry[hashKey].key, key) == 0)
       return -1; //keys iguais a serem put return -1
     while (a->next != NULL)
@@ -125,7 +126,6 @@ int table_put(struct table_t *table, char *key, struct data_t *value)
     a->next = &(table->entry[i]);
   }
   table->size++;
-  table->colls++;
   return 0;
 }
 
@@ -177,7 +177,6 @@ struct data_t *table_get(struct table_t *table, char *key)
 
   while (e != NULL && strcmp(key, e->key) != 0)
   {
-
     e = e->next;
   }
 
