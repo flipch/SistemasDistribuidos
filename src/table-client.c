@@ -1,3 +1,6 @@
+//Grupo 51: Felipe Heliszkowski 47064
+//Gonçalo Cardoso 46784
+//Pedro Gama 47081
 /*
 	Programa cliente para manipular tabela de hash remota.
 	Os comandos introduzido no programa não deverão exceder
