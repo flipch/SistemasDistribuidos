@@ -3,6 +3,6 @@
 #include "inet.h"
 #include"client_stub.h"
 struct rtable_t{
-	struct server_t*server;
+	struct server_t*server; //tamanho das tabelas???
 }
 #endif
