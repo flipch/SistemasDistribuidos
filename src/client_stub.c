@@ -6,7 +6,6 @@
 /* Remote table. A definir pelo grupo em client_stub-private.h 
  */
 struct rtables_t{
-	
 }
 
 /* Função para estabelecer uma associação entre o cliente e um conjunto de
@@ -17,7 +16,14 @@ struct rtables_t{
  * retorna NULL em caso de erro .
  */
 struct rtables_t *rtables_bind(const char *address_port){
-	
+	struct rtable_t *res = (struct rtable_t*) malloc (sizeof(struct rtable_t));
+	if(res == NULL){
+		return NULL;
+	}
+	res->server = network_connect(address_port);
+	if(res->server == NULL)
+		return NULL;
+	return res;
 }
 
 /* Termina a associação entre o cliente e um conjunto de tabelas remotas, e
