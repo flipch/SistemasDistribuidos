@@ -5,7 +5,7 @@
 CC=gcc
 INCLUDE = inc/
 OBJ = obj/
-BIN = bin/
+BIN = binary/
 SRC = src/
 FLAG = gcc -g -Wall -I inc/ -c
 
@@ -36,14 +36,14 @@ test_message.o: $(INCLUDE)message.h
 	$(FLAG) -c $(SRC)test_message.c -o $(OBJ)test_message.o
 
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o
-	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o -o bin/test_message
+	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o -o binary/test_message
 
 table-client: $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
-	$(CC) $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/table-client
+	$(CC) $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
 
 table-server: $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
-	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o bin/table-server
+	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
 
 clean:
 	rm $(OBJ)*.o
-	rm bin/*
+	rm binary/*
