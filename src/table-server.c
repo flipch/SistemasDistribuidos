@@ -7,8 +7,11 @@
    Uso: table-server <port> <table1_size> [<table2_size> ...]
    Exemplo de uso: ./table_server 54321 10 15 20 25
 */
+#define NFDESC 4 
+#define TIMEOUT 50
 #include <error.h>
-
+#include <poll.h>
+#include <fcntl.h>
 #include "inet.h"
 #include "table-private.h"
 #include "message.h"
@@ -216,7 +219,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 */
 int network_receive_send(int sockfd, struct table_t *tables)
 {
-	char *message_resposta, *message_pedido;
+	char *message_r, *message_p;
 	//int msg_length;
 	int message_size, msg_size, result;
 	struct message_t *msg_pedido, *msg_resposta;
@@ -252,16 +255,16 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	   mensagem de pedido. */
 	msg_size = ntohl(msg_size);
 	msg_pedido = (struct message_t *)malloc(msg_size);
-	message_pedido = (char *)malloc(msg_size);
+	message_p = (char *)malloc(msg_size);
 
 	/* Com a função read_all, receber a mensagem de resposta. */
 	/* Verificar se a receção teve sucesso */
-	if ((result = read_all(sockfd, message_pedido, msg_size)) == 0)
+	if ((result = read_all(sockfd, message_p, msg_size)) == 0)
 	{
 		perror("O cliente desligou-se");
 		close(sockfd);
 		free_message(msg_pedido);
-		free(message_pedido);
+		free(message_p);
 		return 0;
 	}
 	else if (result != msg_size)
@@ -269,32 +272,32 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		perror("Erro ao receber dados do cliente");
 		close(sockfd);
 		free_message(msg_pedido);
-		free(message_pedido);
+		free(message_p);
 		return -1;
 	}
 
 	/* Desserializar a mensagem do pedido */
-	msg_pedido = buffer_to_message(message_pedido, msg_size);
+	msg_pedido = buffer_to_message(message_p, msg_size);
 
 	/* Verificar se a desserialização teve sucesso */
 	if (msg_pedido == NULL)
 	{
 		free_message(msg_pedido);
-		free(message_pedido);
+		free(message_p);
 		return -1;
 	}
 	/* Processar a mensagem */
 	msg_resposta = process_message(msg_pedido, &tables[msg_pedido->table_num]);
 
 	/* Serializar a mensagem recebida */
-	message_size = message_to_buffer(msg_resposta, &message_resposta);
+	message_size = message_to_buffer(msg_resposta, &message_r);
 
 	/* Verificar se a serialização teve sucesso */
 	if (message_size <= 0) // Condicao hmmmm
 	{
 		free_message(msg_pedido);
 		free_message(msg_resposta);
-		free(message_pedido);
+		free(message_p);
 		return -1;
 	}
 	/* Enviar ao cliente o tamanho da mensagem que será enviada
@@ -308,14 +311,14 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		close(sockfd);
 		free_message(msg_pedido);
 		free_message(msg_resposta);
-		free(message_resposta);
-		free(message_pedido);
+		free(message_r);
+		free(message_p);
 		return -1;
 	}
 
 	/* Enviar a mensagem que foi previamente serializada */
 
-	result = write_all(sockfd, message_resposta, message_size);
+	result = write_all(sockfd, message_r, message_size);
 
 	/* Verificar se o envio teve sucesso */
 	if (result != message_size)
@@ -324,15 +327,15 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		close(sockfd);
 		free_message(msg_pedido);
 		free_message(msg_resposta);
-		free(message_pedido);
-		free(message_resposta);
+		free(message_p);
+		free(message_r);
 		return -1;
 	}
 	/* Libertar memória */
 	free_message(msg_pedido);
 	free_message(msg_resposta);
-	free(message_pedido);
-	free(message_resposta);
+	free(message_p);
+	free(message_r);
 
 	return 0;
 }
@@ -343,6 +346,10 @@ int main(int argc, char **argv)
 	struct sockaddr_in client;
 	socklen_t size_client;
 	struct table_t *tables;
+	struct pollfd polls;
+	int res, msg_size, error, nfds;
+	char *message_p, *message_r;
+	struct message_t *msg_pedido, *msg_resposta;
 
 	if (argc < 3)
 	{
@@ -366,9 +373,9 @@ int main(int argc, char **argv)
 	struct table_t *table = (struct table_t *)malloc(sizeof(struct table_t));
 	for (i = 2; i < argc; i++)
 	{
-		int size = atoi(argv[i]); // Tamanho da tabela
+		int size = atoi(argv[i]); 
 		table = table_create(size);
-		if (table == NULL) //Something wen't wrong
+		if (table == NULL) 
 		{
 			result = close(listening_socket);
 			return -1;
@@ -377,30 +384,119 @@ int main(int argc, char **argv)
 		index++;
 	}
 
-	int resposta = 0;
+	int i;
+	for(i = 0; i < NFDESC; i++)
+		polls[i].fd = -1;
+	
+	polls[0].fd = listening_socket;
+	nfds = 1;
 
-	while ((connsock = accept(listening_socket, (struct sockaddr *)&client, &size_client)) != -1)
-	{
-		printf(" * Client is connected!\n");
+	while(error != 1){
+		res = poll(polls, nfds, TIMEOUT);
+		if(res < 0){
+			if (errno != EINTR) error = 1;
+			continue;
+		}
+		if((polls[0].revents & POLLIN) && (nfds < NFDESC)){
+			size_client = sizeof(struct sockaddr_in); 
+			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligação feita
+          		polls[nfds].events = POLLIN; 
+         		nfds++;
+      			}
+		}
+		
+		for (i = 1; i < nfds; i++){
+			if(polls[i].revents & POLLIN){
+				if((result = read_all(polls[i].fd, (char *) &msg_size, _INT)) == 0){
+					printf("O cliente desligou-se\n");
+					close(polls[i].fd);
+					polls[i].fd = -1;
+					continue;
+				} else if (result != _INT){
+					printf("Erro ao receber dados do cliente");
+					close(polls[i].fd);
+					polls[i].fd = -1;
+					continue;
+				}
 
-		while (resposta == 0)
-		{
-			/* Fazer ciclo de pedido e resposta */
-			if ((resposta = network_receive_send(connsock, tables)) != 0)
-			{
-				resposta = 1;
+				
+				msg_size = ntohl(msg_size);
+				msg_pedido = (struct message_t*) malloc(msg_size);
+				message_p = (char *) malloc(msg_size);
+
+				
+				if((result = read_all(polls[i].fd, message_p, msg_size)) == 0){
+					printf("O cliente desligou-se\n");
+					close(polls[i].fd);
+					polls[i].fd = -1;
+					continue;
+				} else if(result != msg_size){
+					printf("Erro ao receber dados do cliente");
+					close(polls[i].fd);
+					polls[i].fd = -1;
+					continue;
+				}
+				
+				else{
+				
+					msg_pedido = buffer_to_message(message_p, msg_size);
+
+					
+					if(msg_pedido == NULL){
+						free_message(msg_pedido);
+						free(message_p);
+						return -1;
+					}
+
+				
+					msg_resposta = invoke(msg_pedido);
+
+					
+					msg_size = message_to_buffer(msg_resposta, &message_r);
+
+					
+					if(msg_size <= 0){
+						free_message(msg_pedido);
+						free_message(msg_resposta);
+						free(message_p);
+						return -1;
+					}
+
+					int message_size = msg_size;
+					msg_size = htonl(message_size);
+					if((result = write_all(polls[i].fd, (char *) &msg_size, _INT)) != _INT){
+						perror("Erro ao receber dados do cliente");
+						close(polls[i].fd);
+						free_message(msg_pedido);
+						free_message(msg_resposta);
+						free(message_r);
+						free(message_p);
+						return -1;
+					}
+
+					if((result = write_all(polls[i].fd, message_r, message_size)) != message_size){
+						perror("Erro ao receber dados do cliente");
+						close(polls[i].fd);
+						free_message(msg_pedido);
+						free_message(msg_resposta);
+						free(message_p);
+						free(message_r);
+						return -1;
+					}
+				}
+			}
+			
+			if(polls[i].revents & POLLHUP){
+				close(polls[i].fd);
+				polls[i].fd = -1;
 			}
 		}
-		/* Ciclo feito com sucesso ? Houve erro?
-			   Cliente desligou? 
-		*/
-		if (resposta > 0)
-		{
-			result = close(connsock);
-			printf(" * Client disconnected!\n");
-			break;
-		}
+
 	}
-	result = 0;
-	return result;
+	
+	if(table_skel_destroy() == -1) return -1;
+	
+	for(i = 0; i < nfds; i++)
+		close(polls[i].fd);
+return 0;
 }

@@ -23,7 +23,7 @@ struct rtables_t *rtables_bind(const char *address_port){
 	if(res->server == NULL)
 		return NULL;
 
-	return res->server->tables;
+	return res;
 }
 
 /* Termina a associação entre o cliente e um conjunto de tabelas remotas, e
@@ -44,7 +44,30 @@ int rtables_unbind(struct rtables_t *rtables){
  * Devolve 0 (ok) ou -1 (problemas).
  */
 int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
-	return put(rtables[0], key, value);
+
+	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
+	if(msg == NULL) return -1;
+	msg->opcode = OC_PUT;
+	msg->c_type = CT_ENTRY;
+	msg->table_num = tableNum;
+	if((msg->content.entry = entry_create(key,value)) == NULL){
+		free(msg);
+		return -1;
+	}
+	struct message_t *msg_resposta = (struct message_t*) malloc(sizeof(struct message_t));
+	if(msg_resposta == NULL){
+		free_message(msg);
+		return -1;
+	}
+	if((msg_resposta = network_send_receive(rtable -> server, msg)) == NULL){
+		free_message(msg);
+		free(msg_resposta);		 
+		return -1;
+	}
+	free_message(msg_resposta);
+	free_message(msg);
+				
+	return 0;
 }
 
 /* Função para substituir na tabela remota, o valor associado à chave key.
