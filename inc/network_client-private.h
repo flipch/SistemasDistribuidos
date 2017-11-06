@@ -9,6 +9,7 @@ struct server_t{
 	/* tanto antes da ligação estabelecida, como depois.    */
 	struct sockaddr_in addr;
 	int socket;
+	struct table_t* tables; 
 };
 
 /* Função que garante o envio de len bytes armazenados em buf,

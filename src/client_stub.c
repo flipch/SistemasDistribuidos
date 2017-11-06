@@ -5,8 +5,7 @@
 
 /* Remote table. A definir pelo grupo em client_stub-private.h 
  */
-struct rtables_t{
-}
+struct rtables_t;
 
 /* Função para estabelecer uma associação entre o cliente e um conjunto de
  * tabelas remotas num servidor.
@@ -23,7 +22,8 @@ struct rtables_t *rtables_bind(const char *address_port){
 	res->server = network_connect(address_port);
 	if(res->server == NULL)
 		return NULL;
-	return res;
+
+	return res->server->tables;
 }
 
 /* Termina a associação entre o cliente e um conjunto de tabelas remotas, e
@@ -31,14 +31,20 @@ struct rtables_t *rtables_bind(const char *address_port){
  * Retorna 0 se tudo correr bem e -1 em caso de erro.
  */
 int rtables_unbind(struct rtables_t *rtables){
-	
+
+	if((network_close(rtables->server))== 0){
+		free(rtables);
+		return 0;
+	}
+	free(rtables);
+	return -1;	
 }
 
 /* Função para adicionar um par chave valor numa tabela remota.
  * Devolve 0 (ok) ou -1 (problemas).
  */
 int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
-	
+	return put(rtables[0], key, value);
 }
 
 /* Função para substituir na tabela remota, o valor associado à chave key.

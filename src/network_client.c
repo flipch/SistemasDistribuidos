@@ -205,7 +205,9 @@ int network_close(struct server_t *server)
 	{
 		retorna = 1;
 	}
-	return retorna;
+	
 
 	/* Libertar memória */
+	free(server);
+	return retorna;
 }
