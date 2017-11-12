@@ -15,14 +15,17 @@ struct rtables_t;
  * retorna NULL em caso de erro .
  */
 struct rtables_t *rtables_bind(const char *address_port){
+	if(address_port == NULL) return NULL;
+
 	struct rtable_t *res = (struct rtable_t*) malloc (sizeof(struct rtable_t));
 	if(res == NULL){
 		return NULL;
 	}
 	res->server = network_connect(address_port);
-	if(res->server == NULL)
+	if(res->server == NULL){
+		free(res);
 		return NULL;
-
+	}
 	return res;
 }
 
@@ -31,7 +34,7 @@ struct rtables_t *rtables_bind(const char *address_port){
  * Retorna 0 se tudo correr bem e -1 em caso de erro.
  */
 int rtables_unbind(struct rtables_t *rtables){
-
+	if(rtable == NULL) return -1;
 	if((network_close(rtables->server))== 0){
 		free(rtables);
 		return 0;
@@ -44,29 +47,58 @@ int rtables_unbind(struct rtables_t *rtables){
  * Devolve 0 (ok) ou -1 (problemas).
  */
 int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
+	
+	if(key == NULL) return -1;
+	if(value == NULL) return -1;
+	if(rtables == NULL) return -1;
 
+	struct message_t *msg_resposta ;
 	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
 	if(msg == NULL) return -1;
+
 	msg->opcode = OC_PUT;
 	msg->c_type = CT_ENTRY;
-	msg->table_num = tableNum;
-	if((msg->content.entry = entry_create(key,value)) == NULL){
-		free(msg);
+	msg->table_num = rtable->tableNum; //PIPINHO E AQUI ???
+
+	msg ->content.entry = (struct entry_t t*) malloc(sizeof(struct entry_t));
+	if((msg->content.entry ) == NULL){ // = entry_create(key,value)
+		free_message(msg);
 		return -1;
 	}
-	struct message_t *msg_resposta = (struct message_t*) malloc(sizeof(struct message_t));
+	
+	msg ->content.entry->key = strdup(key);
+	if(msg->content.entry->key == NULL){
+		free_message(msg);
+		return -1;
+	}
+
+	msg ->content.entry->value = strdup(value);
+	if(msg->content.entry->value == NULL){
+		free_message(msg);
+		return -1;
+	}
+
+	msg_resposta = network_send_receive(rtables->server, msg);
 	if(msg_resposta == NULL){
-		free_message(msg);
-		return -1;
+		msg_resposta = malloc(sizeof(struct message_t));
+		if(msg_resposta == NULL){
+			free_message(msg);
+			return -1;
+		}
+		msg_resposta->opcode = OC_RT_ERROR;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result = -1;
 	}
-	if((msg_resposta = network_send_receive(rtable -> server, msg)) == NULL){
-		free_message(msg);
-		free(msg_resposta);		 
-		return -1;
+
+	if(msg_resposta->opcode != OC_PUT +1 && msg_resposta->c_type != CT_RESULT){
+		msg_resposta->opcode = OC_RT_ERROR;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result = -1;
 	}
-	free_message(msg_resposta);
+	print_message(msg);
+	print_message(msg_resposta);
 	free_message(msg);
-				
+	free_message(msg_resposta);
 	return 0;
 }
 
