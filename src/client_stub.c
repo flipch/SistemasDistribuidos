@@ -52,7 +52,7 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
 	if(value == NULL) return -1;
 	if(rtables == NULL) return -1;
 
-	struct message_t *msg_resposta ;
+	struct message_t *msg_2;
 	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
 	if(msg == NULL) return -1;
 
@@ -62,43 +62,44 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
 
 	msg ->content.entry = (struct entry_t t*) malloc(sizeof(struct entry_t));
 	if((msg->content.entry ) == NULL){ // = entry_create(key,value)
-		free_message(msg);
+		free(msg);
 		return -1;
 	}
-	
-	msg ->content.entry->key = strdup(key);
-	if(msg->content.entry->key == NULL){
-		free_message(msg);
-		return -1;
-	}
-
+		
 	msg ->content.entry->value = strdup(value);
 	if(msg->content.entry->value == NULL){
-		free_message(msg);
+		free(msg);
 		return -1;
 	}
 
-	msg_resposta = network_send_receive(rtables->server, msg);
-	if(msg_resposta == NULL){
-		msg_resposta = malloc(sizeof(struct message_t));
-		if(msg_resposta == NULL){
-			free_message(msg);
-			return -1;
-		}
-		msg_resposta->opcode = OC_RT_ERROR;
-		msg_resposta->c_type = CT_RESULT;
-		msg_resposta->content.result = -1;
+	msg ->content.entry->key = strdup(key);
+	if(msg->content.entry->key == NULL){
+		free(msg);
+		return -1;
 	}
 
-	if(msg_resposta->opcode != OC_PUT +1 && msg_resposta->c_type != CT_RESULT){
-		msg_resposta->opcode = OC_RT_ERROR;
-		msg_resposta->c_type = CT_RESULT;
-		msg_resposta->content.result = -1;
+	msg_2 = network_send_receive(rtables->server, msg);
+	if(msg_2 == NULL){
+		msg_2 = malloc(sizeof(struct message_t));
+		if(msg_2 == NULL){
+			free(msg);
+			return -1;
+		}
+		msg_2->opcode = OC_RT_ERROR;
+		msg_2->c_type = CT_RESULT;
+		msg_2->content.result = -1;
 	}
-	print_message(msg);
-	print_message(msg_resposta);
-	free_message(msg);
-	free_message(msg_resposta);
+
+	if(msg_2->opcode != OC_PUT +1 && msg_2->c_type != CT_RESULT){
+		msg_2->opcode = OC_RT_ERROR;
+		msg_2->c_type = CT_RESULT;
+		msg_2->content.result = -1;
+	}
+
+	print_message(msg); 	//needed???
+	print_message(msg_2);	//needed???
+	free(msg);
+	free(msg_2);
 	return 0;
 }
 
@@ -107,32 +108,168 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
  */
 int rables_update(struct rtables_t *rtables, char *key, struct data_t *value){
 	
+	if(key == NULL) return -1;
+	if(value == NULL) return -1;
+	if(rtables == NULL) return -1;
+
+	struct message_t *msg_2;
+	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
+	if(msg == NULL) return -1;
+
+	msg->opcode = OC_UPDATE;
+	msg->c_type = CT_ENTRY;
+	msg->table_num = rtable->tableNum;
+
+	msg ->content.entry = (struct entry_t t*) malloc(sizeof(struct entry_t));
+	if((msg->content.entry ) == NULL){ 
+		free(msg);
+		return -1;
+	}
+	
+	msg ->content.entry->key = strdup(key);
+	if(msg->content.entry->key == NULL){
+		free(msg);
+		return -1;
+	}
+
+	msg ->content.entry->value = strdup(value);
+	if(msg->content.entry->value == NULL){
+		free(msg);
+		return -1;
+	}
+
+	msg_2 = network_send_receive(rtables->server, msg);
+	if(msg_2 == NULL){
+		msg_2 = malloc(sizeof(struct message_t));
+		if(msg_2 == NULL){
+			free(msg);
+			return -1;
+		}
+		msg_2->opcode = OC_RT_ERROR;
+		msg_2->c_type = CT_RESULT;
+		msg_2->content.result = -1;
+	}
+
+	if(msg_2->opcode != OC_UPDATE +1 && msg_2->c_type != CT_RESULT){
+		msg_2->opcode = OC_RT_ERROR;
+		msg_2->c_type = CT_RESULT;
+		msg_2->content.result = -1;
+	}
+	print_message(msg);
+	print_message(msg_2);
+	free(msg);
+	free(msg_2);
+	return 0;
 }
 
 /* Função para obter da tabela remota o valor associado à chave key.
  * Devolve NULL em caso de erro.
  */
 struct data_t *rtables_get(struct rtables_t *tables, char *key){
-	
+	if(key == NULL) return NULL;
+	if(tables == NULL) return NULL;
+
+
+	struct message_t *msg_2;
+	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
+	if(msg == NULL) return NULL;
+
+	msg->opcode = OC_GET;
+	msg->c_type = CT_ENTRY;
+	msg->table_num = rtable->tableNum; 
+
+
+
+	msg ->content.key->key = strdup(key);
+	if(msg->content.key->key == NULL){
+		free(msg);
+		return -1;
+	}
+
+	msg_2 = network_send_receive(tables->server, msg);
+		if(msg_2 == NULL){
+			msg_2 = malloc(sizeof(struct message_t));
+			if(msg_2 == NULL){
+				free(msg);
+				return -1;
+			}
+			msg_2->opcode = OC_RT_ERROR;
+			msg_2->c_type = CT_RESULT;
+			msg_2->content.result = -1;
+		}
+
+		if(msg_2->opcode != OC_GET +1 && msg_2->c_type != CT_RESULT){
+			msg_2->opcode = OC_RT_ERROR;
+			msg_2->c_type = CT_RESULT;
+			msg_2->content.result = -1;
+		}
+		print_message(msg);
+		print_message(msg_2);
+		free(msg);
+		free(msg_2);
+		return 0;
 }
 
 /* Devolve número de pares chave/valor na tabela remota.
  */
 int rtables_size(struct rtables_t *rtables){
-	
+	if(rtables == NULL) return -1;
+
+
+	struct message_t *msg_2;
+	struct message_t *msg = (struct message_t*) malloc(sizeof(struct message_t));
+	if(msg == NULL) return -1;
+
+	msg->opcode = OC_SIZE;
+	msg->c_type = CT_ENTRY;
+	msg->table_num = rtable->tableNum; 
+	msg ->content.result = 0;
+
+	msg_2 = network_send_receive(rtables->server, msg);
+		if(msg_2 == NULL){
+			msg_2 = malloc(sizeof(struct message_t));
+			if(msg_2 == NULL){
+				free(msg);
+				return -1;
+			}
+			msg_2->opcode = OC_RT_ERROR;
+			msg_2->c_type = CT_RESULT;
+			msg_2->content.result = -1;
+		}
+
+		if(msg_2->opcode != OC_SIZE +1 && msg_2->c_type != CT_RESULT){
+			msg_2->opcode = OC_RT_ERROR;
+			msg_2->c_type = CT_RESULT;
+			msg_2->content.result = -1;
+		}
+		print_message(msg);
+		print_message(msg_2);
+		free(msg);
+		free(msg_2);
+		return 0;
 }
 
 /* Devolve um array de char * com a cópia de todas as keys da
  * tabela remota, e um último elemento a NULL.
  */
 char **rtables_get_keys(struct rtables_t *rtables){
-	
+	if(rtables == NULL) return NULL;
+
 }
 
 /* Liberta a memória alocada por rtables_get_keys().
  */
 void rtables_free_keys(char **keys){
-	
+  
+  int count = 0;
+  if (keys != NULL){
+    while (keys[count] != NULL)
+    {
+      free(keys[count]);
+      count++;
+    }
+    free(keys);
+  }
 }
 
 #endif
