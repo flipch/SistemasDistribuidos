@@ -10,6 +10,7 @@
 #define NFDESC 4 
 #define TIMEOUT 50
 #include <error.h>
+#include <errno.h>
 #include <poll.h>
 #include <fcntl.h>
 #include "inet.h"
@@ -346,7 +347,7 @@ int main(int argc, char **argv)
 	struct sockaddr_in client;
 	socklen_t size_client;
 	struct table_t *tables;
-	struct pollfd polls;
+	struct pollfd polls[NFDESC];
 	int res, msg_size, error, nfds;
 	char *message_p, *message_r;
 	struct message_t *msg_pedido, *msg_resposta;
@@ -384,7 +385,7 @@ int main(int argc, char **argv)
 		index++;
 	}
 
-	int i;
+	i = 0;
 	for(i = 0; i < NFDESC; i++)
 		polls[i].fd = -1;
 	
