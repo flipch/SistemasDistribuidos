@@ -2,6 +2,8 @@
 #define _TABLE_SKEL_H
 
 #include "message.h"
+#include <stdlib.h>
+
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
