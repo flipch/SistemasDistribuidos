@@ -58,10 +58,10 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
 
 	msg->opcode = OC_PUT;
 	msg->c_type = CT_ENTRY;
-	msg->table_num = rtable->tableNum; //PIPINHO E AQUI ???
+	msg->table_num = rtable->table_num; //PIPINHO E AQUI ???
 
 	msg ->content.entry = (struct entry_t t*) malloc(sizeof(struct entry_t));
-	if((msg->content.entry ) == NULL){ // = entry_create(key,value)
+	if((msg->content.entry ) == NULL){ 
 		free(msg);
 		return -1;
 	}
@@ -78,13 +78,14 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value){
 		return -1;
 	}
 
+	msg_2 = malloc(sizeof(struct message_t));
+	if(msg_2 == NULL){
+		free(msg);
+		return -1;
+	}
+
 	msg_2 = network_send_receive(rtables->server, msg);
 	if(msg_2 == NULL){
-		msg_2 = malloc(sizeof(struct message_t));
-		if(msg_2 == NULL){
-			free(msg);
-			return -1;
-		}
 		msg_2->opcode = OC_RT_ERROR;
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
@@ -176,7 +177,7 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key){
 
 	msg->opcode = OC_GET;
 	msg->c_type = CT_ENTRY;
-	msg->table_num = rtable->tableNum; 
+	msg->table_num = tables->tableNum; 
 
 
 
@@ -222,7 +223,7 @@ int rtables_size(struct rtables_t *rtables){
 
 	msg->opcode = OC_SIZE;
 	msg->c_type = CT_ENTRY;
-	msg->table_num = rtable->tableNum; 
+	msg->table_num = rtables->tableNum; 
 	msg ->content.result = 0;
 
 	msg_2 = network_send_receive(rtables->server, msg);
