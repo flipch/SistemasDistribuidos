@@ -12,7 +12,8 @@
 #define OC_GET		30
 #define OC_PUT		40
 #define OC_COLLS	50
-#define OC_RT_ERROR	99	
+#define OC_RT_ERROR	99
+#define OC_TABLES   55	
 
 /* Define códigos para os possíveis conteúdos da mensagem */
 #define CT_RESULT	10

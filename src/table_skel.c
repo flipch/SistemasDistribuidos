@@ -67,125 +67,76 @@ return 0;
  * em caso de erro.
  */
 struct message_t *invoke(struct message_t *msg_in){
-	char *message_r, *message_p;
-	//int msg_length;
-	int message_size, msg_size, result;
-	struct message_t *msg_pedido, *msg_resposta;
+	
+	struct message_t  *msg_resposta;
 
-	/* Verificar parâmetros de entrada */
-	if (sockfd < 0)
-	{
+	if(msg_in == NULL){
 		return NULL;
 	}
 
-	if (tables == NULL)
-	{
-		free(tables);
-		return NULL;
-	}
-	/* Com a função read_all, receber num inteiro o tamanho da 
-	   mensagem de pedido que será recebida de seguida.*/
-	/* Verificar se a receção teve sucesso */
-	if ((result = read_all(sockfd, (char *)&msg_size, _INT)) == 0)
-	{
-		perror("O cliente desligou-se");
-		close(sockfd);
-		return 0;
-	}
-	else if (result != _INT)
-	{
-		perror("Erro ao receber dados do cliente");
-		close(sockfd);
+	if(msg_in->opcode < 10 || msg_in->c_type < 10 || msg_in->opcode >99 || msg_in->opcode > 50){
 		return NULL;
 	}
 
-	/* Alocar memória para receber o número de bytes da
-	   mensagem de pedido. */
-	msg_size = ntohl(msg_size);
-	msg_pedido = (struct message_t *)malloc(msg_size);
-	message_p = (char *)malloc(msg_size);
-
-	/* Com a função read_all, receber a mensagem de resposta. */
-	/* Verificar se a receção teve sucesso */
-	if ((result = read_all(sockfd, message_p, msg_size)) == 0)
-	{
-		perror("O cliente desligou-se");
-		close(sockfd);
-		free_message(msg_pedido);
-		free(message_p);
-		return 0;
-	}
-	else if (result != msg_size)
-	{
-		perror("Erro ao receber dados do cliente");
-		close(sockfd);
-		free_message(msg_pedido);
-		free(message_p);
+	if(msg_resposta = (struct message_t *)malloc(sizeof(struct message_t)) == NULL ){
+		free(msg_resposta);
 		return NULL;
 	}
 
-	/* Desserializar a mensagem do pedido */
-	msg_pedido = buffer_to_message(message_p, msg_size);
+	int r;
 
-	/* Verificar se a desserialização teve sucesso */
-	if (msg_pedido == NULL)
-	{
-		free_message(msg_pedido);
-		free(message_p);
-		return NULL;
+	if(msg_in->opcode == OC_TABLES){					//CRIADO NO MESSAGE-PRIVATE.H (55)- 
+														//que nos nao temos mas eu criei o codigo OC_TABLES 55
+														// no MESSAGE.H nos #define	
+		msg_resposta->opcode = OC_TABLES + 1;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result = tableNum; // NUMERO DAS TABELAS???? ou é table_num ??? can't decide
+		return msg_resposta;
+	}else if (msg_in->opcode == OC_SIZE){
+		
+		msg_resposta->opcode = OC_SIZE + 1;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result = table_size(&tables[msg_in->table_num]);
+		return msg_resposta;
+	}else if (msg_in->opcode == OC_UPDATE){
+
+		msg_resposta->opcode = OC_UPDATE + 1;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result = table_update(&tables[msg_in->table_num], msg_in->content.entry->key, msg_in->content.entry->value);
+		return msg_resposta;
+	}else if (msg_in->opcode == OC_GET){
+
+		msg_resposta->opcode = OC_GET + 1;
+		if(strcmp("*", msg_in->content.key) == 0){
+			msg_resposta->c_type = CT_KEYS;
+			msg_resposta->content.keys = table_get_keys(&tables[msg_in->table_num]);
+		}
+		msg_resposta->c_type = CT_VALUE;
+		struct data_t * d = (struct data_t *) malloc (sizeof(data_t));
+		d =  table_get(&tables[msg_in->table_num], msg_in->content.key);
+		if(d == NULL){
+			msg_resposta->content.data = data_create(0);
+		}else{
+			msg_resposta->content.data = data_dup(d);
+		}
+		data_destroy(d);
+		return msg_resposta;
+	}else if (msg_in->opcode == OC_PUT){
+
+		msg_resposta->opcode = OC_PUT + 1;
+		msg_resposta->c_type = CT_RESULT;
+		r =  table_put(&tables[msg_in->table_num], msg_in->content.entry->key, msg_in->content.entry->value);
+		msg_resposta->content.result = r;
+		return msg_resposta;
+	}else if (msg_in->opcode == OC_COLLS){
+		
+		msg_resposta->opcode = OC_COLLS + 1;
+		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->content.result =  table_colls(&tables[msg_in->table_num]);
+		
+		return msg_resposta;
 	}
-	/* Processar a mensagem */
-	msg_resposta = process_message(msg_pedido, &tables[msg_pedido->table_num]);
-
-	/* Serializar a mensagem recebida */
-	message_size = message_to_buffer(msg_resposta, &message_r);
-
-	/* Verificar se a serialização teve sucesso */
-	if (message_size <= 0) // Condicao hmmmm
-	{
-		free_message(msg_pedido);
-		free_message(msg_resposta);
-		free(message_p);
-		return NULL;
-	}
-	/* Enviar ao cliente o tamanho da mensagem que será enviada
-	   logo de seguida
-	*/
-	/* Verificar se o envio teve sucesso */
-	msg_size = htonl(message_size);
-	if ((result = write_all(sockfd, (char *)&msg_size, _INT)) != _INT)
-	{
-		perror("Erro ao receber dados do cliente");
-		close(sockfd);
-		free_message(msg_pedido);
-		free_message(msg_resposta);
-		free(message_r);
-		free(message_p);
-		return NULL;
-	}
-
-	/* Enviar a mensagem que foi previamente serializada */
-
-	result = write_all(sockfd, message_r, message_size);
-
-	/* Verificar se o envio teve sucesso */
-	if (result != message_size)
-	{
-		perror("Erro ao receber dados do cliente");
-		close(sockfd);
-		free_message(msg_pedido);
-		free_message(msg_resposta);
-		free(message_p);
-		free(message_r);
-		return NULL;
-	}
-	/* Libertar memória */
-	free_message(msg_pedido);
-	free_message(msg_resposta);
-	free(message_p);
-	free(message_r);
-
-	return 0;
+	return NULL; // se falhar todos retorna NULL RIGHT???
 }
 
 #endif
