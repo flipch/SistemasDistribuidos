@@ -2,6 +2,12 @@
 #define _TABLE_SKEL_H
 
 #include "table_skel.h"
+#include <stdlib.h>
+#include "table.h"
+#include "table-private.h"
+#include "message.h"
+#include "inet.h"
+
 struct table_t *table;
 struct table_t *tables;
 /* Inicia o skeleton da tabela.
@@ -17,7 +23,6 @@ int table_skel_init(char **n_tables){
 	while(n_tables[count] != NULL){
 		count ++;
 	}
-
 	int i;				
 	tables = (struct table_t *)malloc(sizeof(struct table_t) * count); 
 	table = (struct table_t *)malloc(sizeof(struct table_t));
@@ -27,7 +32,6 @@ int table_skel_init(char **n_tables){
 		table = table_create(size);
 		if (table == NULL) 
 		{
-			result = close(listening_socket);
 			free(tables);
 			free(table);
 			return -1;
@@ -63,7 +67,7 @@ return 0;
  * em caso de erro.
  */
 struct message_t *invoke(struct message_t *msg_in){
-		char *message_r, *message_p;
+	char *message_r, *message_p;
 	//int msg_length;
 	int message_size, msg_size, result;
 	struct message_t *msg_pedido, *msg_resposta;
@@ -71,13 +75,13 @@ struct message_t *invoke(struct message_t *msg_in){
 	/* Verificar parâmetros de entrada */
 	if (sockfd < 0)
 	{
-		return -1;
+		return NULL;
 	}
 
 	if (tables == NULL)
 	{
 		free(tables);
-		return -1;
+		return NULL;
 	}
 	/* Com a função read_all, receber num inteiro o tamanho da 
 	   mensagem de pedido que será recebida de seguida.*/
@@ -92,7 +96,7 @@ struct message_t *invoke(struct message_t *msg_in){
 	{
 		perror("Erro ao receber dados do cliente");
 		close(sockfd);
-		return -1;
+		return NULL;
 	}
 
 	/* Alocar memória para receber o número de bytes da
@@ -117,7 +121,7 @@ struct message_t *invoke(struct message_t *msg_in){
 		close(sockfd);
 		free_message(msg_pedido);
 		free(message_p);
-		return -1;
+		return NULL;
 	}
 
 	/* Desserializar a mensagem do pedido */
@@ -128,7 +132,7 @@ struct message_t *invoke(struct message_t *msg_in){
 	{
 		free_message(msg_pedido);
 		free(message_p);
-		return -1;
+		return NULL;
 	}
 	/* Processar a mensagem */
 	msg_resposta = process_message(msg_pedido, &tables[msg_pedido->table_num]);
@@ -142,7 +146,7 @@ struct message_t *invoke(struct message_t *msg_in){
 		free_message(msg_pedido);
 		free_message(msg_resposta);
 		free(message_p);
-		return -1;
+		return NULL;
 	}
 	/* Enviar ao cliente o tamanho da mensagem que será enviada
 	   logo de seguida
@@ -157,7 +161,7 @@ struct message_t *invoke(struct message_t *msg_in){
 		free_message(msg_resposta);
 		free(message_r);
 		free(message_p);
-		return -1;
+		return NULL;
 	}
 
 	/* Enviar a mensagem que foi previamente serializada */
@@ -173,7 +177,7 @@ struct message_t *invoke(struct message_t *msg_in){
 		free_message(msg_resposta);
 		free(message_p);
 		free(message_r);
-		return -1;
+		return NULL;
 	}
 	/* Libertar memória */
 	free_message(msg_pedido);
