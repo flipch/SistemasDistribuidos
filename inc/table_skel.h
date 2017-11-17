@@ -1,9 +1,11 @@
 #ifndef _TABLE_SKEL_H
 #define _TABLE_SKEL_H
 
-#include "message.h"
 #include <stdlib.h>
-
+#include "table.h"
+#include "table-private.h"
+#include "message.h"
+#include "inet.h"
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a

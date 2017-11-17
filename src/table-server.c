@@ -7,13 +7,14 @@
    Uso: table-server <port> <table1_size> [<table2_size> ...]
    Exemplo de uso: ./table_server 54321 10 15 20 25
 */
-#define NFDESC 4 
+#define NFDESC 5
 #define TIMEOUT 50
 #include <error.h>
 #include <errno.h>
 #include <poll.h>
 #include <fcntl.h>
 #include "inet.h"
+#include "table_skel.h"
 #include "table-private.h"
 #include "message.h"
 #include "network_client-private.h"
@@ -343,12 +344,11 @@ int network_receive_send(int sockfd, struct table_t *tables)
 
 int main(int argc, char **argv)
 {
-	int listening_socket, connsock, result;
+	int listening_socket, result;
 	struct sockaddr_in client;
 	socklen_t size_client;
-	struct table_t *tables;
 	struct pollfd polls[NFDESC];
-	int res, msg_size, error, nfds;
+	int res, msg_size, nfds;
 	char *message_p, *message_r;
 	struct message_t *msg_pedido, *msg_resposta;
 
@@ -365,98 +365,92 @@ int main(int argc, char **argv)
 	/*********************************************************/
 	/* Criar as tabelas de acordo com linha de comandos dada */
 	/*********************************************************/
+	sprintf(argv[1], "%d", argc);
+	table_skel_init(argv);
 
-	int tableCount = argc - 2; // Quantas tabelas menos o nome do programa e da porta
-	int i;					   // Inicio dos tamanhos da tabela no argv
+	size_client = sizeof(struct sockaddr_in);
 
-	tables = (struct table_t *)malloc(sizeof(struct table_t) * tableCount); //Será necessário ?
-	int index = 0;
-	struct table_t *table = (struct table_t *)malloc(sizeof(struct table_t));
-	for (i = 2; i < argc; i++)
+	int i = 0;
+	for (i = 0; i < NFDESC; i++)
 	{
-		int size = atoi(argv[i]); 
-		table = table_create(size);
-		if (table == NULL) 
-		{
-			result = close(listening_socket);
-			return -1;
-		}
-		tables[index] = *table;
-		index++;
+		polls[i].fd = -1; // ignore < 0
 	}
-
-	i = 0;
-	for(i = 0; i < NFDESC; i++)
-		polls[i].fd = -1;
-	
 	polls[0].fd = listening_socket;
+	polls[0].events = POLLIN;
+
 	nfds = 1;
 
-	while(error != 1){
-		res = poll(polls, nfds, TIMEOUT);
-		if(res < 0){
-			if (errno != EINTR) error = 1;
-			continue;
+	while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
+	{
+		if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
+		{
+			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
+			{ // Ligação feita
+				printf("Cliente{%d} connectado\n", nfds);
+				polls[nfds].events = POLLIN;
+				nfds++;
+			}
 		}
-		if((polls[0].revents & POLLIN) && (nfds < NFDESC)){
-			size_client = sizeof(struct sockaddr_in); 
-			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligação feita
-          		polls[nfds].events = POLLIN; 
-         		nfds++;
-      			}
-		}
-		
-		for (i = 1; i < nfds; i++){
-			if(polls[i].revents & POLLIN){
-				if((result = read_all(polls[i].fd, (char *) &msg_size, _INT)) == 0){
+
+		for (i = 1; i < nfds; i++)
+		{
+			if (polls[i].revents & POLLIN)
+			{
+				if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
+				{
 					printf("O cliente desligou-se\n");
 					close(polls[i].fd);
 					polls[i].fd = -1;
 					continue;
-				} else if (result != _INT){
+				}
+				else if (result != _INT)
+				{
 					printf("Erro ao receber dados do cliente");
 					close(polls[i].fd);
 					polls[i].fd = -1;
 					continue;
 				}
 
-				
 				msg_size = ntohl(msg_size);
-				msg_pedido = (struct message_t*) malloc(msg_size);
-				message_p = (char *) malloc(msg_size);
+				msg_pedido = (struct message_t *)malloc(msg_size);
+				message_p = (char *)malloc(msg_size);
 
-				
-				if((result = read_all(polls[i].fd, message_p, msg_size)) == 0){
+				if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
+				{
 					printf("O cliente desligou-se\n");
 					close(polls[i].fd);
 					polls[i].fd = -1;
 					continue;
-				} else if(result != msg_size){
+				}
+				else if (result != msg_size)
+				{
 					printf("Erro ao receber dados do cliente");
 					close(polls[i].fd);
 					polls[i].fd = -1;
 					continue;
 				}
-				
-				else{
-				
+
+				else
+				{
 					msg_pedido = buffer_to_message(message_p, msg_size);
 
-					
-					if(msg_pedido == NULL){
+					if (msg_pedido == NULL)
+					{
 						free_message(msg_pedido);
 						free(message_p);
 						return -1;
 					}
-
-				
+					printf("Recebido do cliente:");
+					print_message(msg_pedido);
 					msg_resposta = invoke(msg_pedido);
 
-					
+					printf("Enviado para o cliente:");
+					print_message(msg_resposta);
+
 					msg_size = message_to_buffer(msg_resposta, &message_r);
 
-					
-					if(msg_size <= 0){
+					if (msg_size <= 0)
+					{
 						free_message(msg_pedido);
 						free_message(msg_resposta);
 						free(message_p);
@@ -465,7 +459,8 @@ int main(int argc, char **argv)
 
 					int message_size = msg_size;
 					msg_size = htonl(message_size);
-					if((result = write_all(polls[i].fd, (char *) &msg_size, _INT)) != _INT){
+					if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
+					{
 						perror("Erro ao receber dados do cliente");
 						close(polls[i].fd);
 						free_message(msg_pedido);
@@ -475,7 +470,8 @@ int main(int argc, char **argv)
 						return -1;
 					}
 
-					if((result = write_all(polls[i].fd, message_r, message_size)) != message_size){
+					if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
+					{
 						perror("Erro ao receber dados do cliente");
 						close(polls[i].fd);
 						free_message(msg_pedido);
@@ -486,18 +482,19 @@ int main(int argc, char **argv)
 					}
 				}
 			}
-			
-			if(polls[i].revents & POLLHUP){
+
+			if (polls[i].revents & POLLHUP)
+			{
 				close(polls[i].fd);
 				polls[i].fd = -1;
 			}
 		}
-
 	}
-	
-	if(table_skel_destroy() == -1) return -1;
-	
-	for(i = 0; i < nfds; i++)
+
+	if (table_skel_destroy() == -1)
+		return -1;
+
+	for (i = 0; i < nfds; i++)
 		close(polls[i].fd);
-return 0;
+	return 0;
 }

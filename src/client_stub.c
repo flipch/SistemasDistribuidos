@@ -129,7 +129,7 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 /* Função para substituir na tabela remota, o valor associado à chave key.
  * Devolve 0 (OK) ou -1 em caso de erros.
  */
-int rables_update(struct rtables_t *rtables, char *key, struct data_t *value)
+int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 {
 
 	if (key == NULL)

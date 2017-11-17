@@ -47,8 +47,8 @@ test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $
 table-client: $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
 	$(CC) $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
 
-table-server: $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
-	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
+table-server: $(OBJ)table-server.o  $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
+	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
 
 clean:
 	rm $(OBJ)*.o
