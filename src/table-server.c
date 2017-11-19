@@ -400,6 +400,7 @@ int main(int argc, char **argv)
 				{
 					printf("O cliente desligou-se\n");
 					close(polls[i].fd);
+					nfds--;
 					polls[i].fd = -1;
 					continue;
 				}
@@ -419,6 +420,7 @@ int main(int argc, char **argv)
 				{
 					printf("O cliente desligou-se\n");
 					close(polls[i].fd);
+					nfds--;
 					polls[i].fd = -1;
 					continue;
 				}
