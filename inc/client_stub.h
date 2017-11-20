@@ -1,7 +1,6 @@
 #ifndef _CLIENT_STUB_H
 #define _CLIENT_STUB_H
 
-
 #include <stdlib.h>
 #include "data.h"
 #include "client_stub-private.h"

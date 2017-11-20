@@ -83,9 +83,9 @@ struct message_t *invoke(struct message_t *msg_in)
 	int r;
 	if (msg_in->opcode == OC_SIZE)
 	{
-
 		msg_resposta->opcode = OC_SIZE + 1;
 		msg_resposta->c_type = CT_RESULT;
+		msg_resposta->table_num = msg_in->table_num;
 		msg_resposta->content.result = table_size(&tables[msg_in->table_num]);
 		return msg_resposta;
 	}
@@ -111,7 +111,12 @@ struct message_t *invoke(struct message_t *msg_in)
 		d = table_get(&tables[msg_in->table_num], msg_in->content.key);
 		if (d == NULL)
 		{
-			msg_resposta->content.data = data_create(0);
+			struct data_t *not_found = (struct data_t *)malloc(sizeof(struct data_t));
+			not_found->data = NULL;
+			not_found->datasize = 0;
+			msg_resposta->content.data = not_found;
+			msg_resposta->c_type = CT_VALUE;
+			msg_resposta->opcode = OC_RT_ERROR;
 		}
 		else
 		{

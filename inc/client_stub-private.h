@@ -4,6 +4,9 @@
 #include"client_stub.h"
 
 struct rtables_t{
-	struct server_t*server; 
+	struct server_t*server;
+    int numeroTabelas;
+    int currentTable;
+    int print;
 };
 #endif

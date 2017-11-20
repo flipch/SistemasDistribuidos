@@ -144,7 +144,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	write_all(server->socket, message_out, message_size);	
 
-	printf("A espera da resposta do servidor... \n");
+	//printf("A  da resposta do servidor... \n");
 
 	if ((result = read_all(server->socket, (char *)&msg_size, _INT)) == 0)
 	{

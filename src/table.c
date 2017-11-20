@@ -172,7 +172,8 @@ struct data_t *table_get(struct table_t *table, char *key)
   int hk = hash(key, table->MAX_SIZE);
 
   struct entry_t *e = &table->entry[hk];
-
+  if (e->value == NULL)
+    return NULL;
   struct data_t *valor = NULL;
 
   while (e != NULL && strcmp(key, e->key) != 0)
@@ -193,7 +194,7 @@ struct data_t *table_get(struct table_t *table, char *key)
 int table_size(struct table_t *table)
 {
   //criamos um elemento = 0 sempre que ha um elemento damos update com o table put
-  if (table == NULL)
+  if (table->MAX_SIZE == 0)
     return -1;
   return table->size;
 }

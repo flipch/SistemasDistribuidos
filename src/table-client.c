@@ -12,6 +12,7 @@
 
 #include "network_client-private.h"
 #include "message.h"
+#include "client_stub.h"
 
 void print_message(struct message_t *msg)
 {
@@ -42,7 +43,8 @@ void print_message(struct message_t *msg)
     break;
     case CT_VALUE:
     {
-        printf("datasize: %d\n", msg->content.data->datasize);
+        if (msg->content.data != NULL)
+            printf("datasize: %d\n", msg->content.data->datasize);
     }
     break;
     case CT_RESULT:
@@ -55,9 +57,10 @@ void print_message(struct message_t *msg)
 
 int main(int argc, char **argv)
 {
-    struct server_t *server;
     char input[81];
-    struct message_t *msg_out, *msg_resposta;
+    struct rtables_t *rtables;
+
+    rtables = (struct rtables_t *)malloc(sizeof(struct rtables_t));
 
     /* Testar os argumentos de entrada */
     if (argc < 2)
@@ -67,7 +70,7 @@ int main(int argc, char **argv)
     }
 
     /* Usar network_connect para estabelcer ligação ao servidor */
-    server = network_connect(argv[1]);
+    rtables = rtables_bind(argv[1]);
 
     char *token = (char *)malloc(80);
     /* Fazer ciclo até que o utilizador resolva fazer "quit" */
@@ -97,7 +100,7 @@ int main(int argc, char **argv)
         token = strtok(input, " ");
         if (strcmp(token, "quit") == 0)
         {
-            network_close(server);
+            network_close(rtables->server);
             exit(0);
         }
         /* Caso contrário:
@@ -113,7 +116,6 @@ int main(int argc, char **argv)
         else
         {
             int count = 0;
-            msg_out = (struct message_t *)malloc(sizeof(struct message_t));
             int fail = 0; //BOOLEAN VALUE FOR CHECK
 
             if (strcmp(token, "put") == 0)
@@ -148,26 +150,17 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    msg_out->opcode = OC_PUT;
-                    msg_out->c_type = CT_ENTRY;
-                    msg_out->table_num = tableNum;
-                    struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
-                    if (entry == NULL)
-                    { //Malloc failed?
-                        free(entry);
-                        return -1;
-                    }
-                    entry->key = key;
-                    entry->value = data;
-                    msg_out->content.entry = entry;
+                    rtables->currentTable = tableNum;
+                    fail = rtables_put(rtables, key, data);
                 }
             }
             else if (strcmp(token, "get") == 0)
             {
                 short tableNum = -1;
                 token = strtok(NULL, " ");
-                msg_out->content.key = (char *)malloc(strlen(token));
-                strcpy(msg_out->content.key, token);
+                char *key;
+                key = malloc(strlen(token));
+                strcpy(key, token);
                 token = strtok(NULL, " ");
                 tableNum = atoi(token);
                 if (tableNum == -1)
@@ -177,9 +170,9 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    msg_out->table_num = tableNum;
-                    msg_out->opcode = OC_GET;
-                    msg_out->c_type = CT_KEY;
+                    rtables->currentTable = tableNum;
+                    rtables_get(rtables, key);
+                    fail = 0;
                 }
             }
             else if (strcmp(token, "update") == 0)
@@ -209,18 +202,8 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    msg_out->table_num = tableNum;
-                    msg_out->opcode = OC_UPDATE;
-                    msg_out->c_type = CT_ENTRY;
-                    struct entry_t *entry = (struct entry_t *)malloc(sizeof(struct entry_t));
-                    if (entry == NULL)
-                    { //Malloc failed?
-                        free(entry);
-                        return -1;
-                    }
-                    entry->key = key;
-                    entry->value = data;
-                    msg_out->content.entry = entry;
+                    rtables->currentTable = tableNum;
+                    fail = rtables_update(rtables, key, data);
                 }
             }
             else if (strcmp(token, "colls") == 0)
@@ -234,10 +217,9 @@ int main(int argc, char **argv)
                     fail = 1;
                 }
                 else
-                {
-                    msg_out->table_num = tableNum;
-                    msg_out->opcode = OC_COLLS;
-                    msg_out->c_type = CT_RESULT;
+                { 
+                     rtables->currentTable = tableNum;
+                     fail = rtables_collisions(rtables);
                 }
             }
             else if (strcmp(token, "size") == 0)
@@ -252,28 +234,15 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    msg_out->table_num = tableNum;
-                    msg_out->opcode = OC_SIZE;
-                    msg_out->c_type = CT_RESULT;
+                    rtables->currentTable = tableNum;
+                    fail = rtables_size(rtables);
                 }
             }
             else
             {
                 fail = 1;
             }
-            if (fail == 0)
-            {
-                msg_resposta = (struct message_t *)malloc(sizeof(struct message_t));
-                if ((msg_resposta = network_send_receive(server, msg_out)) == NULL)
-                {
-                    free(msg_resposta);
-                    exit(0);
-                }
-                count = 0;
-                print_message(msg_resposta);
-                free_message(msg_out);
-            }
-            else if (fail == 1)
+            if (fail == 1)
             {
                 printf("--------------------------\n");
                 printf("Introduza um comando certo\n");
@@ -288,5 +257,7 @@ int main(int argc, char **argv)
             token = (char *)malloc(80);
         }
     }
-    return network_close(server);
+    free(rtables->server);
+    free(rtables);
+    return network_close(rtables->server);
 }

@@ -26,7 +26,7 @@ message.o: $(INCLUDE)message.h $(INCLUDE)table.h
 table_skel.o: $(INCLUDE)message.h $(INCLUDE)table_skel.h 
 	$(FLAG) $(SRC)table_skel.c -o $(OBJ)table_skel.o
 
-client_stub.o: $(INCLUDE)data.h $(INCLUDE)client_stub.h
+client_stub.o: $(INCLUDE)data.h $(INCLUDE)message.h $(INCLUDE)network_client.h $(INCLUDE)client_stub-private.h $(INCLUDE)client_stub.h
 	$(FLAG) $(SRC)client_stub.c -o $(OBJ)client_stub.o	
 
 network_client.o: $(INCLUDE)message.h $(INCLUDE)inet.h
@@ -44,8 +44,8 @@ test_message.o: $(INCLUDE)message.h
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o -o binary/test_message
 
-table-client: $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
-	$(CC) $(OBJ)table-client.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
+table-client: $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
+	$(CC) $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
 
 table-server: $(OBJ)table-server.o  $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
 	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server

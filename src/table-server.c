@@ -49,7 +49,8 @@ void print_message(struct message_t *msg)
 	break;
 	case CT_VALUE:
 	{
-		printf("datasize: %d\n", msg->content.data->datasize);
+		if (msg->content.data != NULL)
+			printf("datasize: %d\n", msg->content.data->datasize);
 	}
 	break;
 	case CT_RESULT:
