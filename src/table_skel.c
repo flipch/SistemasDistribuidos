@@ -103,26 +103,14 @@ struct message_t *invoke(struct message_t *msg_in)
 		msg_resposta->opcode = OC_GET + 1;
 		if (strcmp("*", msg_in->content.key) == 0)
 		{
+			msg_resposta->table_num = msg_in->table_num;
 			msg_resposta->c_type = CT_KEYS;
 			msg_resposta->content.keys = table_get_keys(&tables[msg_in->table_num]);
+			return msg_resposta;
 		}
 		msg_resposta->c_type = CT_VALUE;
-		struct data_t *d = (struct data_t *)malloc(sizeof(struct data_t));
-		d = table_get(&tables[msg_in->table_num], msg_in->content.key);
-		if (d == NULL)
-		{
-			struct data_t *not_found = (struct data_t *)malloc(sizeof(struct data_t));
-			not_found->data = NULL;
-			not_found->datasize = 0;
-			msg_resposta->content.data = not_found;
-			msg_resposta->c_type = CT_VALUE;
-			msg_resposta->opcode = OC_RT_ERROR;
-		}
-		else
-		{
-			msg_resposta->content.data = data_dup(d);
-		}
-		data_destroy(d);
+		msg_resposta->table_num = msg_in->table_num;
+		msg_resposta->content.data = table_get(&tables[msg_in->table_num], msg_in->content.key);
 		return msg_resposta;
 	}
 	else if (msg_in->opcode == OC_PUT)

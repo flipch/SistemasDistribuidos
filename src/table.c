@@ -98,6 +98,9 @@ int table_put(struct table_t *table, char *key, struct data_t *value)
   if (table->size == table->MAX_SIZE)
     return -1;
 
+  if (table->MAX_SIZE == 0)
+    return -1;
+
   int hashKey = hash(key, table->MAX_SIZE);
 
   struct entry_t *a = &(table->entry[hashKey]);
@@ -140,6 +143,9 @@ int table_update(struct table_t *table, char *key, struct data_t *value)
   if (table == NULL || key == NULL || value == NULL)
     return -1;
 
+  if (table->MAX_SIZE == 0)
+    return -1;
+
   int hk = hash(key, table->MAX_SIZE);
 
   if (table->entry[hk].key == NULL) // Casa vazia nao ha nada para dar update
@@ -168,6 +174,12 @@ int table_update(struct table_t *table, char *key, struct data_t *value)
 
 struct data_t *table_get(struct table_t *table, char *key)
 {
+  if (table == NULL || key == NULL)
+  {
+    return NULL;
+  }
+  if (table->MAX_SIZE == 0)
+    return NULL;
 
   int hk = hash(key, table->MAX_SIZE);
 
@@ -204,7 +216,7 @@ int table_size(struct table_t *table)
 int table_colls(struct table_t *table)
 {
   //criamos um elemento = 0 sempre que ha um elemento damos update com o table put
-  if (table == NULL)
+  if (table->MAX_SIZE == 0)
     return -1;
   return table->colls;
 }
@@ -216,6 +228,9 @@ char **table_get_keys(struct table_t *table)
 {
 
   if (table == NULL)
+    return NULL;
+
+  if (table->MAX_SIZE == 0)
     return NULL;
 
   char **list_keys = (char **)malloc(sizeof(char *) * (table->size + 1));

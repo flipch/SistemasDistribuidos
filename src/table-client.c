@@ -146,12 +146,12 @@ int main(int argc, char **argv)
                 if (count != 3) // Um dos tokens nao foi inserido
                 {
                     printf("Insira todos os argumentos necessários\n");
-                    fail = 1;
+                    fail = -1;
                 }
                 else
                 {
                     rtables->currentTable = tableNum;
-                    fail = rtables_put(rtables, key, data);
+                    rtables_put(rtables, key, data);
                 }
             }
             else if (strcmp(token, "get") == 0)
@@ -166,12 +166,15 @@ int main(int argc, char **argv)
                 if (tableNum == -1)
                 {
                     printf("Insira todos os argumentos necessários\n");
-                    fail = 1;
+                    fail = -1;
                 }
                 else
                 {
                     rtables->currentTable = tableNum;
-                    rtables_get(rtables, key);
+                    if (strcmp(key, "*") == 0)
+                        rtables_get_keys(rtables);
+                    else
+                        rtables_get(rtables, key);
                     fail = 0;
                 }
             }
@@ -198,28 +201,29 @@ int main(int argc, char **argv)
                 if (count != 3) // Um dos tokens nao foi inserido
                 {
                     printf("Insira todos os argumentos necessários\n");
-                    fail = 1;
+                    fail = -1;
                 }
                 else
                 {
                     rtables->currentTable = tableNum;
-                    fail = rtables_update(rtables, key, data);
+                    rtables_update(rtables, key, data);
                 }
             }
             else if (strcmp(token, "colls") == 0)
             {
                 short tableNum = -1;
                 token = strtok(NULL, " ");
-                tableNum = atoi(token);
+                if (token != NULL)
+                    tableNum = atoi(token);
                 if (tableNum == -1)
                 {
                     printf("Insira todos os argumentos necessários\n");
-                    fail = 1;
+                    fail = -1;
                 }
                 else
-                { 
-                     rtables->currentTable = tableNum;
-                     fail = rtables_collisions(rtables);
+                {
+                    rtables->currentTable = tableNum;
+                    rtables_collisions(rtables);
                 }
             }
             else if (strcmp(token, "size") == 0)
@@ -230,19 +234,19 @@ int main(int argc, char **argv)
                 if (tableNum == -1)
                 {
                     printf("Insira todos os argumentos necessários\n");
-                    fail = 1;
+                    fail = -1;
                 }
                 else
                 {
                     rtables->currentTable = tableNum;
-                    fail = rtables_size(rtables);
+                    rtables_size(rtables);
                 }
             }
             else
             {
-                fail = 1;
+                fail = -1;
             }
-            if (fail == 1)
+            if (fail == -1)
             {
                 printf("--------------------------\n");
                 printf("Introduza um comando certo\n");

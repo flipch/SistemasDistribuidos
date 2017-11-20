@@ -58,6 +58,7 @@ struct rtables_t *rtables_bind(const char *address_port)
 			}
 		} while (maisTabelas == 1);
 	}
+	res->numeroTabelas = numero_tabelas;
 	res->print = 1;
 	return res;
 }
@@ -99,6 +100,11 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 
 	msg->opcode = OC_PUT;
 	msg->c_type = CT_ENTRY;
+	if (rtables->numeroTabelas < rtables->currentTable)
+	{	
+		printf("Tabela escolhida inválida");
+		return -1;
+	}
 	msg->table_num = rtables->currentTable;
 
 	msg->content.entry = (struct entry_t *)malloc(sizeof(struct entry_t));
@@ -172,6 +178,11 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 
 	msg->opcode = OC_UPDATE;
 	msg->c_type = CT_ENTRY;
+	if (rtables->numeroTabelas < rtables->currentTable)
+	{
+		printf("Tabela escolhida inválida");
+		return -1;
+	}
 	msg->table_num = rtables->currentTable;
 
 	msg->content.entry = (struct entry_t *)malloc(sizeof(struct entry_t));
@@ -228,7 +239,6 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
  */
 struct data_t *rtables_get(struct rtables_t *tables, char *key)
 {
-	struct data_t *result;
 	if (key == NULL)
 		return NULL;
 	if (tables == NULL)
@@ -241,6 +251,11 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key)
 
 	msg->opcode = OC_GET;
 	msg->c_type = CT_KEY;
+	if (tables->numeroTabelas < tables->currentTable)
+	{
+		printf("Tabela escolhida inválida");
+		return NULL;
+	}
 	msg->table_num = tables->currentTable;
 
 	msg->content.key = strdup(key);
@@ -284,6 +299,7 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key)
 	}
 	else
 	{
+		free(msg);
 		return msg_2->content.data;
 	}
 }
@@ -303,6 +319,11 @@ int rtables_size(struct rtables_t *rtables)
 
 	msg->opcode = OC_SIZE;
 	msg->c_type = CT_RESULT;
+	if (rtables->numeroTabelas < rtables->currentTable && rtables->print != 0)
+	{
+		printf("Tabela escolhida inválida");
+		return -1;
+	}
 	msg->table_num = rtables->currentTable;
 	msg->content.result = 0;
 
@@ -353,6 +374,11 @@ int rtables_collisions(struct rtables_t *rtables)
 
 	msg->opcode = OC_COLLS;
 	msg->c_type = CT_RESULT;
+	if (rtables->numeroTabelas < rtables->currentTable)
+	{
+		printf("Tabela escolhida inválida");
+		return -1;
+	}
 	msg->table_num = rtables->currentTable;
 	msg->content.result = 0;
 
@@ -393,6 +419,7 @@ int rtables_collisions(struct rtables_t *rtables)
  */
 char **rtables_get_keys(struct rtables_t *rtables)
 {
+	char **arrkeys;
 	if (rtables == NULL)
 		return NULL;
 
@@ -402,8 +429,13 @@ char **rtables_get_keys(struct rtables_t *rtables)
 		return NULL;
 
 	msg->opcode = OC_GET;
-	msg->c_type = CT_ENTRY;
-	msg->table_num = rtables->server->tableNum;
+	msg->c_type = CT_KEY;
+	if (rtables->numeroTabelas < rtables->currentTable)
+	{
+		printf("Tabela escolhida inválida");
+		return NULL;
+	}
+	msg->table_num = rtables->currentTable;
 
 	msg->content.key = "*";
 	if (msg->content.key == NULL)
@@ -428,18 +460,18 @@ char **rtables_get_keys(struct rtables_t *rtables)
 		msg_2->content.result = -1;
 	}
 
-	if (msg_2->opcode != OC_GET + 1 && msg_2->c_type != CT_RESULT)
+	if (msg_2->opcode != OC_GET + 1 && msg_2->c_type != CT_KEYS)
 	{
 		msg_2->opcode = OC_RT_ERROR;
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
 	}
+	arrkeys = msg_2->content.keys;
 	//print_message(msg);
 	if (rtables->print == 1)
 		print_message(msg_2);
 	free(msg);
-	free(msg_2);
-	return 0;
+	return arrkeys;
 }
 
 /* Liberta a memória alocada por rtables_get_keys().
