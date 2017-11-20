@@ -111,6 +111,9 @@ struct message_t *invoke(struct message_t *msg_in)
 		msg_resposta->c_type = CT_VALUE;
 		msg_resposta->table_num = msg_in->table_num;
 		msg_resposta->content.data = table_get(&tables[msg_in->table_num], msg_in->content.key);
+		if(msg_resposta->content.data == NULL){
+			msg_resposta->content.data = data_create(0); //Cria um data vazio, tamanho 0
+		}
 		return msg_resposta;
 	}
 	else if (msg_in->opcode == OC_PUT)

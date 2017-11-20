@@ -102,7 +102,7 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->c_type = CT_ENTRY;
 	if (rtables->numeroTabelas < rtables->currentTable)
 	{	
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return -1;
 	}
 	msg->table_num = rtables->currentTable;
@@ -180,7 +180,7 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->c_type = CT_ENTRY;
 	if (rtables->numeroTabelas < rtables->currentTable)
 	{
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return -1;
 	}
 	msg->table_num = rtables->currentTable;
@@ -253,7 +253,7 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key)
 	msg->c_type = CT_KEY;
 	if (tables->numeroTabelas < tables->currentTable)
 	{
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return NULL;
 	}
 	msg->table_num = tables->currentTable;
@@ -321,7 +321,7 @@ int rtables_size(struct rtables_t *rtables)
 	msg->c_type = CT_RESULT;
 	if (rtables->numeroTabelas < rtables->currentTable && rtables->print != 0)
 	{
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return -1;
 	}
 	msg->table_num = rtables->currentTable;
@@ -376,7 +376,7 @@ int rtables_collisions(struct rtables_t *rtables)
 	msg->c_type = CT_RESULT;
 	if (rtables->numeroTabelas < rtables->currentTable)
 	{
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return -1;
 	}
 	msg->table_num = rtables->currentTable;
@@ -432,7 +432,7 @@ char **rtables_get_keys(struct rtables_t *rtables)
 	msg->c_type = CT_KEY;
 	if (rtables->numeroTabelas < rtables->currentTable)
 	{
-		printf("Tabela escolhida inválida");
+		printf("Tabela escolhida inválida\n");
 		return NULL;
 	}
 	msg->table_num = rtables->currentTable;
