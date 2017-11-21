@@ -101,7 +101,7 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->opcode = OC_PUT;
 	msg->c_type = CT_ENTRY;
 	if (rtables->numeroTabelas < rtables->currentTable)
-	{	
+	{
 		printf("Tabela escolhida inválida\n");
 		return -1;
 	}
@@ -117,6 +117,7 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->content.entry->value = data_dup(value);
 	if (msg->content.entry->value == NULL)
 	{
+		free(msg->content.entry);
 		free(msg);
 		return -1;
 	}
@@ -124,18 +125,20 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->content.entry->key = strdup(key);
 	if (msg->content.entry->key == NULL)
 	{
-		free(msg);
-		return -1;
-	}
-
-	msg_2 = malloc(sizeof(struct message_t));
-	if (msg_2 == NULL)
-	{
+		free(msg->content.entry->value);
+		free(msg->content.entry);
 		free(msg);
 		return -1;
 	}
 
 	msg_2 = network_send_receive(rtables->server, msg);
+
+	//Ja nao precisamos da mensagem de envio
+	free(msg->content.entry->key);
+	free(msg->content.entry->value);
+	free(msg->content.entry);
+	free(msg);
+
 	if (msg_2 == NULL)
 	{
 		msg_2->opcode = OC_RT_ERROR;
@@ -150,12 +153,15 @@ int rtables_put(struct rtables_t *rtables, char *key, struct data_t *value)
 		msg_2->content.result = -1;
 	}
 
-	//print_message(msg);   //needed???
 	if (rtables->print == 1)
 		print_message(msg_2);
-	free(msg);
+
+	int result;
+	result = msg_2->content.result;
+
+	//Ja nao precisamos da mensagem 2 ( de resposta )
 	free(msg_2);
-	return 0;
+	return result;
 }
 
 /* Função para substituir na tabela remota, o valor associado à chave key.
@@ -195,6 +201,7 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->content.entry->key = strdup(key);
 	if (msg->content.entry->key == NULL)
 	{
+		free(msg->content.entry);
 		free(msg);
 		return -1;
 	}
@@ -202,19 +209,22 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 	msg->content.entry->value = data_dup(value);
 	if (msg->content.entry->value == NULL)
 	{
+		free(msg->content.entry->key);
+		free(msg->content.entry);
 		free(msg);
 		return -1;
 	}
 
 	msg_2 = network_send_receive(rtables->server, msg);
+
+	//Ja nao precisamos da mensagem de envio
+	free(msg->content.entry->key);
+	free(msg->content.entry->value);
+	free(msg->content.entry);
+	free(msg);
+
 	if (msg_2 == NULL)
 	{
-		msg_2 = malloc(sizeof(struct message_t));
-		if (msg_2 == NULL)
-		{
-			free(msg);
-			return -1;
-		}
 		msg_2->opcode = OC_RT_ERROR;
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
@@ -229,9 +239,10 @@ int rtables_update(struct rtables_t *rtables, char *key, struct data_t *value)
 	//print_message(msg);
 	if (rtables->print == 1)
 		print_message(msg_2);
-	free(msg);
+
+	int result = msg_2->content.result;
 	free(msg_2);
-	return 0;
+	return result;
 }
 
 /* Função para obter da tabela remota o valor associado à chave key.
@@ -265,19 +276,14 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key)
 		return NULL;
 	}
 
-	msg_2 = malloc(sizeof(struct message_t));
-	if (msg_2 == NULL)
-	{
-		free(msg);
-		return NULL;
-	}
-
 	msg_2 = network_send_receive(tables->server, msg);
 
+	//Ja nao precisamos da mensagem de envio
+	free(msg->content.key);
+	free(msg);
+
 	if (msg_2 == NULL)
 	{
-		if (tables->print == 1)
-			print_message(msg_2);
 		return NULL;
 	}
 
@@ -287,28 +293,18 @@ struct data_t *rtables_get(struct rtables_t *tables, char *key)
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
 	}
-	//print_message(msg);
 	if (tables->print == 1)
 		print_message(msg_2);
-
-	if (msg_2->content.result == -1)
-	{
-		free(msg);
-		free(msg_2);
-		return NULL;
-	}
-	else
-	{
-		free(msg);
-		return msg_2->content.data;
-	}
+	struct data_t *data;
+	data = data_dup(msg_2->content.data);
+	free(msg_2);
+	return data;
 }
 
 /* Devolve número de pares chave/valor na tabela remota.
  */
 int rtables_size(struct rtables_t *rtables)
 {
-	int result;
 	if (rtables == NULL)
 		return -1;
 
@@ -328,7 +324,6 @@ int rtables_size(struct rtables_t *rtables)
 	msg->content.result = 0;
 
 	msg_2 = malloc(sizeof(struct message_t));
-
 	if (msg_2 == NULL)
 	{
 		free(msg);
@@ -336,6 +331,9 @@ int rtables_size(struct rtables_t *rtables)
 	}
 
 	msg_2 = network_send_receive(rtables->server, msg);
+
+	//Ja nao precisamos da mensagem de envio
+	free(msg);
 
 	if (msg_2 == NULL)
 	{
@@ -350,11 +348,11 @@ int rtables_size(struct rtables_t *rtables)
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
 	}
-	result = msg_2->content.result;
-	//print_message(msg);
 	if (rtables->print == 1)
 		print_message(msg_2);
-	free(msg);
+
+	int result;
+	result = msg_2->content.result;
 	free(msg_2);
 	return result;
 }
@@ -419,7 +417,7 @@ int rtables_collisions(struct rtables_t *rtables)
  */
 char **rtables_get_keys(struct rtables_t *rtables)
 {
-	char **arrkeys;
+
 	if (rtables == NULL)
 		return NULL;
 
@@ -437,21 +435,20 @@ char **rtables_get_keys(struct rtables_t *rtables)
 	}
 	msg->table_num = rtables->currentTable;
 
-	msg->content.key = "*";
-	if (msg->content.key == NULL)
-	{
-		free(msg);
-		return NULL;
-	}
+	msg->content.key = strdup("*");
 
 	msg_2 = malloc(sizeof(struct message_t));
 	if (msg_2 == NULL)
 	{
+		free(msg->content.key);
 		free(msg);
 		return NULL;
 	}
 
 	msg_2 = network_send_receive(rtables->server, msg);
+
+	free(msg->content.key);
+	free(msg);
 
 	if (msg_2 == NULL)
 	{
@@ -466,11 +463,14 @@ char **rtables_get_keys(struct rtables_t *rtables)
 		msg_2->c_type = CT_RESULT;
 		msg_2->content.result = -1;
 	}
-	arrkeys = msg_2->content.keys;
 	//print_message(msg);
 	if (rtables->print == 1)
 		print_message(msg_2);
-	free(msg);
+
+	char **arrkeys;
+	arrkeys = msg_2->content.keys;
+	rtables_free_keys(msg_2->content.keys);
+	free(msg_2);
 	return arrkeys;
 }
 

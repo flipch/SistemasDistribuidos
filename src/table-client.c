@@ -60,8 +60,6 @@ int main(int argc, char **argv)
     char input[81];
     struct rtables_t *rtables;
 
-    rtables = (struct rtables_t *)malloc(sizeof(struct rtables_t));
-
     /* Testar os argumentos de entrada */
     if (argc < 2)
     {
@@ -100,8 +98,7 @@ int main(int argc, char **argv)
         token = strtok(input, " ");
         if (strcmp(token, "quit") == 0)
         {
-            network_close(rtables->server);
-            exit(0);
+            break;
         }
         /* Caso contrário:
 
@@ -153,6 +150,8 @@ int main(int argc, char **argv)
                     rtables->currentTable = tableNum;
                     rtables_put(rtables, key, data);
                 }
+                free(key);
+                data_destroy(data);
             }
             else if (strcmp(token, "get") == 0)
             {
@@ -177,6 +176,7 @@ int main(int argc, char **argv)
                         rtables_get(rtables, key);
                     fail = 0;
                 }
+                free(key);
             }
             else if (strcmp(token, "update") == 0)
             {
@@ -208,6 +208,8 @@ int main(int argc, char **argv)
                     rtables->currentTable = tableNum;
                     rtables_update(rtables, key, data);
                 }
+                free(key);
+                data_destroy(data);
             }
             else if (strcmp(token, "colls") == 0)
             {
@@ -261,7 +263,6 @@ int main(int argc, char **argv)
             token = (char *)malloc(80);
         }
     }
-    free(rtables->server);
-    free(rtables);
-    return network_close(rtables->server);
+    free(token);
+    return rtables_unbind(rtables);
 }

@@ -71,6 +71,7 @@ struct server_t *network_connect(const char *address_port)
 	if (server == NULL)
 	{
 		free(cAddress_port);
+		free(port);
 		return NULL;
 	}
 
@@ -80,6 +81,7 @@ struct server_t *network_connect(const char *address_port)
 		perror("Erro ao criar socket");
 		free(server);
 		free(cAddress_port);
+		free(port);
 		return NULL;
 	}
 	// Preenche estrutura server para estabelecer conexão
@@ -89,6 +91,7 @@ struct server_t *network_connect(const char *address_port)
 	{
 		printf("Erro ao converter IP\n");
 		free(cAddress_port);
+		free(port);
 		close(server->socket);
 		free(server);
 		return NULL;
@@ -98,11 +101,12 @@ struct server_t *network_connect(const char *address_port)
 	{
 		perror("Erro ao conectar-se ao servidor");
 		free(cAddress_port);
+		free(port);
 		close(server->socket);
 		free(server);
 		return NULL;
 	}
-
+	free(port);
 	free(cAddress_port);
 	return server;
 }
@@ -187,6 +191,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Libertar memória */
 	free(message_out);
+	free(message_resposta);
 
 	return msg_resposta;
 }
@@ -205,7 +210,6 @@ int network_close(struct server_t *server)
 	{
 		retorna = 1;
 	}
-	
 
 	/* Libertar memória */
 	free(server);

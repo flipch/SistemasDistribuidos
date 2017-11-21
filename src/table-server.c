@@ -443,12 +443,11 @@ int main(int argc, char **argv)
 						free(message_p);
 						return -1;
 					}
-					printf("Recebido do cliente:");
-					print_message(msg_pedido);
+					//printf("Recebido do cliente:");
+					//print_message(msg_pedido);
 					msg_resposta = invoke(msg_pedido);
-
-					printf("Enviado para o cliente:");
-					print_message(msg_resposta);
+					//printf("Enviado para o cliente:");
+					//print_message(msg_resposta);
 
 					msg_size = message_to_buffer(msg_resposta, &message_r);
 
