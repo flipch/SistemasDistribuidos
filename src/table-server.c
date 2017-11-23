@@ -13,6 +13,11 @@
 #include <errno.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 #include "inet.h"
 #include "table_skel.h"
 #include "table-private.h"
@@ -500,3 +505,4 @@ int main(int argc, char **argv)
 		close(polls[i].fd);
 	return 0;
 }
+

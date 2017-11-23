@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <message.h>
 
+struct rtables_t **rtables;
+int count = 0;
+
 int write_all(int sock, char *buf, int len)
 {
 
@@ -60,7 +63,6 @@ struct server_t *network_connect(const char *address_port)
 		return NULL;
 
 	char *cAddress_port = strdup(address_port);
-
 	char *separator = strchr(cAddress_port, ':');
 	*separator = '\0';
 
@@ -119,8 +121,10 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Verificar parâmetros de entrada */
 
-	if (server == NULL)
+	if (server == NULL) //ver se o ServerPrimario esta a null
+	{
 		return NULL;
+	}
 
 	if (msg == NULL)
 		return NULL;
@@ -129,7 +133,6 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	message_size = message_to_buffer(msg, &message_out);
 
 	/* Verificar se a serialização teve sucesso */
-	//TO-DO
 
 	/* Enviar ao servidor o tamanho da mensagem que será enviada
 	   logo de seguida
@@ -146,7 +149,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Enviar a mensagem que foi previamente serializada */
 
-	write_all(server->socket, message_out, message_size);	
+	write_all(server->socket, message_out, message_size);
 
 	//printf("A  da resposta do servidor... \n");
 
@@ -185,7 +188,7 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	char *message_resposta = malloc(sizeof(char *));
 
 	result = read_all(server->socket, message_resposta, message_size);
-	
+
 	msg_resposta = buffer_to_message(message_resposta, message_size);
 	/* Verificar se a desserialização teve sucesso */
 

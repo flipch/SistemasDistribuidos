@@ -58,18 +58,19 @@ void print_message(struct message_t *msg)
 int main(int argc, char **argv)
 {
     char input[81];
-    struct rtables_t *rtables;
+    struct rtables_t *rtables, rtablesSec;
 
     /* Testar os argumentos de entrada */
-    if (argc < 2)
+    if (argc < 3)
     {
-        printf("Escreva a porta de conexão\n");
+        printf("Escreva IP:PORTA do servidor Primário e Secundário\n");
         return -1;
     }
 
     /* Usar network_connect para estabelcer ligação ao servidor */
     rtables = rtables_bind(argv[1]);
-
+    rtablesSec = rtables_bind(argv[2]);
+    
     char *token = (char *)malloc(80);
     /* Fazer ciclo até que o utilizador resolva fazer "quit" */
     while (strcmp(token, "quit") != 0)
@@ -147,6 +148,13 @@ int main(int argc, char **argv)
                 }
                 else
                 {
+                    if(rtables->server == NULL)// FASE 4 IDEIA
+                    {
+                        rtablesSec->currentTable = tableNum;
+                        rtables_put(rtablesSec, key, data);
+                        rtables_unbind(rtables);
+                        rtables = rtablesSec;
+                    } 
                     rtables->currentTable = tableNum;
                     rtables_put(rtables, key, data);
                 }
@@ -205,6 +213,13 @@ int main(int argc, char **argv)
                 }
                 else
                 {
+                    if(rtables->server == NULL)// FASE 4 IDEIA
+                    {
+                        rtablesSec->currentTable = tableNum;
+                        rtables_update(rtablesSec, key, data);
+                        rtables_unbind(rtables);
+                        rtables = rtablesSec;
+                    } 
                     rtables->currentTable = tableNum;
                     rtables_update(rtables, key, data);
                 }
