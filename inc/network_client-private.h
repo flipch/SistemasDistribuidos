@@ -4,15 +4,6 @@
 #include "inet.h"
 #include "network_client.h"
 
-struct server_t{
-	/* Atributos importantes para interagir com o servidor, */
-	/* tanto antes da ligação estabelecida, como depois.    */
-	struct sockaddr_in addr;
-	int socket;
-	struct table_t* tables;
-	int tableNum; 
-};
-
 /* Função que garante o envio de len bytes armazenados em buf,
    através da socket sock.
 */

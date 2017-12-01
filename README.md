@@ -15,8 +15,9 @@ Executáveis: Sem problemas
 
 
 TO-DO SHIT :
-    1- criar duas thread uma para p e s
-    (alive 1-vivo,0-morto)
+    0- Resolver os problemas do include, talvez seja no makefile nao sei
+    1- Done
+    Falta estado de servidores (alive 1-vivo,0-morto)
     2- DONE
     3-
         a-done

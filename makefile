@@ -32,6 +32,9 @@ client_stub.o: $(INCLUDE)data.h $(INCLUDE)message.h $(INCLUDE)network_client.h $
 network_client.o: $(INCLUDE)message.h $(INCLUDE)inet.h
 	$(FLAG) $(SRC)network_client.c -o $(OBJ)network_client.o
 
+primary_backup.o: $(INCLUDE)primary_backup.h $(INCLUDE)primary_backup-private.h $(INCLUDE)table-private.h $(INCLUDE)table.h
+	$(FLAG) $(SRC)primary_backup.c -o $(OBJ)primary_backup.o
+
 table-client.o: $(INCLUDE)network_client-private.h $(INCLUDE)inet.h
 	$(FLAG) $(SRC)table-client.c -o $(OBJ)table-client.o
 
@@ -40,10 +43,6 @@ table-server.o: $(INCLUDE)inet.h $(INCLUDE)table-private.h
 
 test_message.o: $(INCLUDE)message.h
 	$(FLAG) -c $(SRC)test_message.c -o $(OBJ)test_message.o
-
-##NEW SHIT
-primary_backup.o: $(INCLUDE)primary_backup.h $(INCLUDE)primary_backup-private.h
-	$(FLAG) -c $(SRC)primary_backup.c -o $(OBJ)primary_backup.o
 
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o -o binary/test_message
