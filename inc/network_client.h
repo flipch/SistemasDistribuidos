@@ -2,6 +2,7 @@
 #define _NETWORK_CLIENT_H
 
 #include "network_client-private.h"
+#include "primary_backup.h"
 
 struct server_t; //a definir pelo grupo em network_client-private.h
 

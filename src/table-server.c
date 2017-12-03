@@ -1,5 +1,5 @@
 //Grupo 51: Felipe Heliszkowski 47064
-//Gonçalo Cardoso 46784
+//Gonï¿½alo Cardoso 46784
 //Pedro Gama 47081
 
 /*
@@ -30,6 +30,7 @@ struct thread_parameters
 {
 	char **argv;
 	int argc;
+	int type;
 };
 
 /***************************************************************/
@@ -46,7 +47,7 @@ void print_message(struct message_t *msg)
 	int i;
 
 	printf("\n----- MESSAGE -----\n");
-	printf("Tabela número: %d\n", msg->table_num);
+	printf("Tabela nï¿½mero: %d\n", msg->table_num);
 	printf("opcode: %d, c_type: %d\n", msg->opcode, msg->c_type);
 	switch (msg->c_type)
 	{
@@ -88,7 +89,7 @@ void print_message(struct message_t *msg)
 	printf("-------------------\n");
 }
 
-/* Função para preparar uma socket de receção de pedidos de ligação.
+/* Funï¿½ï¿½o para preparar uma socket de receï¿½ï¿½o de pedidos de ligaï¿½ï¿½o.
 */
 int make_server_socket(short port)
 {
@@ -121,15 +122,15 @@ int make_server_socket(short port)
 	return socket_fd;
 }
 
-/* Função que recebe uma tabela e uma mensagem de pedido e:
-	- aplica a operação na mensagem de pedido na tabela;
+/* Funï¿½ï¿½o que recebe uma tabela e uma mensagem de pedido e:
+	- aplica a operaï¿½ï¿½o na mensagem de pedido na tabela;
 	- devolve uma mensagem de resposta com oresultado.
 */
 struct message_t *process_message(struct message_t *msg_pedido, struct table_t *tabela)
 {
 	struct message_t *msg_resposta;
 
-	/* Verificar parâmetros de entrada */
+	/* Verificar parï¿½metros de entrada */
 
 	if (msg_pedido == NULL)
 		return NULL;
@@ -146,7 +147,7 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 	char **keys;
 	int dataOrkeys = 0;
 
-	/* Aplicar operação na tabela */
+	/* Aplicar operaï¿½ï¿½o na tabela */
 	if (msg_pedido->opcode == OC_PUT)
 	{
 		result = table_put(tabela, msg_pedido->content.entry->key, msg_pedido->content.entry->value);
@@ -235,8 +236,8 @@ struct message_t *process_message(struct message_t *msg_pedido, struct table_t *
 	return msg_resposta;
 }
 
-/* Função "inversa" da função network_send_receive usada no table-client.
-   Neste caso a função implementa um ciclo receive/send:
+/* Funï¿½ï¿½o "inversa" da funï¿½ï¿½o network_send_receive usada no table-client.
+   Neste caso a funï¿½ï¿½o implementa um ciclo receive/send:
 
 	Recebe um pedido;
 	Aplica o pedido na tabela;
@@ -249,7 +250,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	int message_size, msg_size, result;
 	struct message_t *msg_pedido, *msg_resposta;
 
-	/* Verificar parâmetros de entrada */
+	/* Verificar parï¿½metros de entrada */
 	if (sockfd < 0)
 	{
 		return -1;
@@ -260,9 +261,9 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		free(tables);
 		return -1;
 	}
-	/* Com a função read_all, receber num inteiro o tamanho da 
-	   mensagem de pedido que será recebida de seguida.*/
-	/* Verificar se a receção teve sucesso */
+	/* Com a funï¿½ï¿½o read_all, receber num inteiro o tamanho da 
+	   mensagem de pedido que serï¿½ recebida de seguida.*/
+	/* Verificar se a receï¿½ï¿½o teve sucesso */
 	if ((result = read_all(sockfd, (char *)&msg_size, _INT)) == 0)
 	{
 		perror("O cliente desligou-se");
@@ -276,14 +277,14 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		return -1;
 	}
 
-	/* Alocar memória para receber o número de bytes da
+	/* Alocar memï¿½ria para receber o nï¿½mero de bytes da
 	   mensagem de pedido. */
 	msg_size = ntohl(msg_size);
 	msg_pedido = (struct message_t *)malloc(msg_size);
 	message_p = (char *)malloc(msg_size);
 
-	/* Com a função read_all, receber a mensagem de resposta. */
-	/* Verificar se a receção teve sucesso */
+	/* Com a funï¿½ï¿½o read_all, receber a mensagem de resposta. */
+	/* Verificar se a receï¿½ï¿½o teve sucesso */
 	if ((result = read_all(sockfd, message_p, msg_size)) == 0)
 	{
 		perror("O cliente desligou-se");
@@ -304,7 +305,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	/* Desserializar a mensagem do pedido */
 	msg_pedido = buffer_to_message(message_p, msg_size);
 
-	/* Verificar se a desserialização teve sucesso */
+	/* Verificar se a desserializaï¿½ï¿½o teve sucesso */
 	if (msg_pedido == NULL)
 	{
 		free_message(msg_pedido);
@@ -317,7 +318,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	/* Serializar a mensagem recebida */
 	message_size = message_to_buffer(msg_resposta, &message_r);
 
-	/* Verificar se a serialização teve sucesso */
+	/* Verificar se a serializaï¿½ï¿½o teve sucesso */
 	if (message_size <= 0) // Condicao hmmmm
 	{
 		free_message(msg_pedido);
@@ -325,7 +326,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		free(message_p);
 		return -1;
 	}
-	/* Enviar ao cliente o tamanho da mensagem que será enviada
+	/* Enviar ao cliente o tamanho da mensagem que serï¿½ enviada
 	   logo de seguida
 	*/
 	/* Verificar se o envio teve sucesso */
@@ -356,7 +357,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		free(message_r);
 		return -1;
 	}
-	/* Libertar memória */
+	/* Libertar memï¿½ria */
 	free_message(msg_pedido);
 	free_message(msg_resposta);
 	free(message_p);
@@ -365,9 +366,9 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	return 0;
 }
 /* 
-Thread onde corre a lógica do servidor primário
+Thread onde corre a lï¿½gica do servidor primï¿½rio
 */
-void *thread_primary(void *params)
+void *thread_server(void *params)
 {
 	struct thread_parameters *tp = (struct thread_parameters *)params;
 	int *result = 0;
@@ -385,7 +386,6 @@ void *thread_primary(void *params)
 	/*********************************************************/
 	/* Criar as tabelas de acordo com linha de comandos dada */
 	/*********************************************************/
-	sprintf(tp->argv[1], "%d", argc);
 	table_skel_init(tp->argv);
 
 	size_client = sizeof(struct sockaddr_in);
@@ -405,161 +405,7 @@ void *thread_primary(void *params)
 		if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
 		{
 			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
-			{ // Ligação feita
-				printf("Cliente{%d} connectado\n", nfds);
-				polls[nfds].events = POLLIN;
-				nfds++;
-			}
-		}
-
-		for (i = 1; i < nfds; i++)
-		{
-			if (polls[i].revents & POLLIN)
-			{
-				if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
-				{
-					printf("O cliente desligou-se\n");
-					close(polls[i].fd);
-					nfds--;
-					polls[i].fd = -1;
-					continue;
-				}
-				else if (result != _INT)
-				{
-					printf("Erro ao receber dados do cliente");
-					close(polls[i].fd);
-					polls[i].fd = -1;
-					continue;
-				}
-
-				msg_size = ntohl(msg_size);
-				msg_pedido = (struct message_t *)malloc(msg_size);
-				message_p = (char *)malloc(msg_size);
-
-				if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
-				{
-					printf("O cliente desligou-se\n");
-					close(polls[i].fd);
-					nfds--;
-					polls[i].fd = -1;
-					continue;
-				}
-				else if (result != msg_size)
-				{
-					printf("Erro ao receber dados do cliente");
-					close(polls[i].fd);
-					polls[i].fd = -1;
-					continue;
-				}
-
-				else
-				{
-					msg_pedido = buffer_to_message(message_p, msg_size);
-
-					if (msg_pedido == NULL)
-					{
-						free_message(msg_pedido);
-						free(message_p);
-						return -1;
-					}
-					//printf("Recebido do cliente:");
-					//print_message(msg_pedido);
-					msg_resposta = invoke(msg_pedido);
-					//printf("Enviado para o cliente:");
-					//print_message(msg_resposta);
-
-					msg_size = message_to_buffer(msg_resposta, &message_r);
-
-					if (msg_size <= 0)
-					{
-						free_message(msg_pedido);
-						free_message(msg_resposta);
-						free(message_p);
-						return -1;
-					}
-
-					int message_size = msg_size;
-					msg_size = htonl(message_size);
-					if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
-					{
-						perror("Erro ao receber dados do cliente");
-						close(polls[i].fd);
-						free_message(msg_pedido);
-						free_message(msg_resposta);
-						free(message_r);
-						free(message_p);
-						return -1;
-					}
-
-					if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
-					{
-						perror("Erro ao receber dados do cliente");
-						close(polls[i].fd);
-						free_message(msg_pedido);
-						free_message(msg_resposta);
-						free(message_p);
-						free(message_r);
-						return -1;
-					}
-				}
-			}
-
-			if (polls[i].revents & POLLHUP)
-			{
-				close(polls[i].fd);
-				polls[i].fd = -1;
-			}
-		}
-	}
-
-	if (table_skel_destroy() == -1)
-		return -1;
-
-	for (i = 0; i < nfds; i++)
-		close(polls[i].fd);
-	return 0;
-}
-
-void *thread_secondary(void *params)
-{
-	struct thread_parameters *tp = (struct thread_parameters *)params;
-	int *result = 0;
-	int listening_socket;
-	struct sockaddr_in client;
-	socklen_t size_client;
-	struct pollfd polls[NFDESC];
-	int res, msg_size, nfds;
-	char *message_p, *message_r;
-	struct message_t *msg_pedido, *msg_resposta;
-	int sec_port = atoi(tp->argv[1]) + 1; //E.g. 1337 => 1338
-
-	if ((listening_socket = make_server_socket()) < 0)
-		return -1;
-
-	/*********************************************************/
-	/* Criar as tabelas de acordo com linha de comandos dada */
-	/*********************************************************/
-	sprintf(tp->argv[1], "%d", argc);
-	table_skel_init(tp->argv);
-
-	size_client = sizeof(struct sockaddr_in);
-
-	int i = 0;
-	for (i = 0; i < NFDESC; i++)
-	{
-		polls[i].fd = -1; // ignore < 0
-	}
-	polls[0].fd = listening_socket;
-	polls[0].events = POLLIN;
-
-	nfds = 1;
-
-	while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
-	{
-		if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
-		{
-			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
-			{ // Ligação feita
+			{ // Ligaï¿½ï¿½o feita
 				printf("Cliente{%d} connectado\n", nfds);
 				polls[nfds].events = POLLIN;
 				nfds++;
@@ -678,7 +524,7 @@ int main(int argc, char **argv)
 {
 	int result, *r;
 	pthread_t primary_server, secondary_server;
-	struct thread_parameters thread_p, thread_s;
+	struct thread_parameters thread_params;
 	struct server_t **servers;
 
 	if (argc < 3)
@@ -688,29 +534,28 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	/* Parâmetros para o servidor primário */
-	thread_p.argv = argv;
-	thread_p.argc = argc;
+	thread_params.argv = argv;
+	thread_params.argc = argc;
+	thread_params.type = 1;
 
-	/* Parâmetros para o servidor secundario */
-	thread_s.argv = argv;
-	thread_s.argc = argc;
-
-	/* Criação das threads de cada servidor */
-	if (pthread_create(&primary_server, NULL, &thread_primary, (void *)&thread_p) != 0)
+	if (pthread_create(&primary_server, NULL, &thread_server, (void *)&thread_params) != 0)
 	{
-		perror("\nThread do Servidor Primário não criada.\n");
+		perror("\nThread do Servidor Primï¿½rio nï¿½o criada.\n");
 		exit(EXIT_FAILURE);
 	}
-	if (pthread_create(&secondary_server, NULL, &thread_secondary, (void *)&thread_s) != 0)
+	/* Parï¿½metros para o servidor secundario */
+	thread_params.argv = argv;
+	thread_params.argc = argc;
+	thread_params.type = 2;
+	if (pthread_create(&secondary_server, NULL, &thread_server, (void *)&thread_params) != 0)
 	{
-		perror("\nThread do Servidor Secundário não criada.\n");
+		perror("\nThread do Servidor Secundï¿½rio nï¿½o criada.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	while (1)
 	{
-		//Optimização
+		//Optimizaï¿½ï¿½o
 		sleep(5);
 		int i;
 		/*for (i = 0; i < 2; i++ 0)
@@ -721,12 +566,12 @@ int main(int argc, char **argv)
 				//Criar novo servidor dependendo do caso
 				if (i == 0)
 				{
-					//Primary server morreu, secundario agora é primário e criar novo secundário
+					//Primary server morreu, secundario agora ï¿½ primï¿½rio e criar novo secundï¿½rio
 					primary_server = secondary_server;
 					//New secondary
 					if (pthread_create(&secondary_server, NULL, &thread_secondary, (void *)&thread_s) != 0)
 					{
-						perror("\nThread do Servidor Secundário não criada.\n");
+						perror("\nThread do Servidor Secundï¿½rio nï¿½o criada.\n");
 						exit(EXIT_FAILURE);
 					}
 				}

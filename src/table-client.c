@@ -58,12 +58,12 @@ void print_message(struct message_t *msg)
 int main(int argc, char **argv)
 {
     char input[81];
-    struct rtables_t *rtables, rtablesSec;
+    struct rtables_t *rtables, *rtablesSec;
 
     /* Testar os argumentos de entrada */
-    if (argc < 3)
+    if (argc < 2)
     {
-        printf("Escreva IP:PORTA do servidor Primário e Secundário\n");
+        printf("Escreva de acordo com o seguinte formato\nIP:PORTA");
         return -1;
     }
 

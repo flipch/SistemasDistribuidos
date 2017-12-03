@@ -38,11 +38,11 @@ primary_backup.o: $(INCLUDE)primary_backup.h $(INCLUDE)primary_backup-private.h 
 table-client.o: $(INCLUDE)network_client-private.h $(INCLUDE)inet.h
 	$(FLAG) $(SRC)table-client.c -o $(OBJ)table-client.o
 
-table-server.o: $(INCLUDE)inet.h $(INCLUDE)table-private.h
+table-server.o: $(INCLUDE)inet.h $(INCLUDE)table-private.h $(INCLUDE)primary_backup.h 
 	$(FLAG) $(SRC)table-server.c -o $(OBJ)table-server.o
 
 test_message.o: $(INCLUDE)message.h
-	$(FLAG) -c $(SRC)test_message.c -o $(OBJ)test_message.o
+	$(FLAG) $(SRC)test_message.c -o $(OBJ)test_message.o
 
 test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o
 	$(CC) $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $(OBJ)data.o -o binary/test_message
@@ -50,8 +50,8 @@ test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $
 table-client: $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
 	$(CC) $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
 
-table-server: $(OBJ)table-server.o  $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
-	$(CC) $(OBJ)table-server.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
+table-server: $(OBJ)table-server.o  $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o $(OBJ)primary_backup.o
+	$(CC) -pthread $(OBJ)table-server.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)primary_backup.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
 
 clean:
 	rm $(OBJ)*.o
