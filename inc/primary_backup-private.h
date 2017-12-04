@@ -9,6 +9,6 @@ struct server_t{
 	struct sockaddr_in addr;
 	int socket;
 	struct table_t* tables;
-	int state; 
+	int type; 
 };
 #endif

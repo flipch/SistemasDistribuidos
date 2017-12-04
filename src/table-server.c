@@ -25,17 +25,30 @@
 #include "primary_backup.h"
 #include "network_client-private.h"
 
+#define PRIMARY		1
+#define SECONDARY  	2
+
 /*****************************************/
 struct thread_parameters
 {
 	char **argv;
 	int argc;
 	int type;
+	int id;
 };
 
-/***************************************************************/
+typedef struct ServerController
+{
+	int server_id;
+	int state;
+	struct server_t server;
+} ServerController;
 
-int counter = 0, number = 0;
+ServerController **sc;
+int unique_id = 1;
+
+/***************************************************************/
+int idPrimary, idSecondary;
 
 pthread_mutex_t dados = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t dados_disponiveis = PTHREAD_COND_INITIALIZER;
@@ -365,6 +378,25 @@ int network_receive_send(int sockfd, struct table_t *tables)
 
 	return 0;
 }
+/*
+	Procura por um id no controlador de servers
+*/
+int indexOf(int id)
+{
+	int count = 0;
+	ServerController *serverC = sc[0];
+	while (serverC != NULL)
+	{
+		if (serverC->server_id == id)
+		{
+			//Found
+			return count;
+		}
+		count++;
+	}
+	return -1;
+}
+
 /* 
 Thread onde corre a l�gica do servidor prim�rio
 */
@@ -380,8 +412,17 @@ void *thread_server(void *params)
 	char *message_p, *message_r;
 	struct message_t *msg_pedido, *msg_resposta;
 
-	if ((listening_socket = make_server_socket(atoi(tp->argv[1]))) < 0)
-		return -1;
+	if (tp->type == 1)
+	{
+		if ((listening_socket = make_server_socket(atoi(tp->argv[1]))) < 0)
+			return -1;
+	}
+	else if (tp->type == 2)
+	{
+		int porta = atoi(tp->argv[1]) + 1;
+		if ((listening_socket = make_server_socket(porta) < 0))
+			return -1;
+	}
 
 	/*********************************************************/
 	/* Criar as tabelas de acordo com linha de comandos dada */
@@ -400,8 +441,18 @@ void *thread_server(void *params)
 
 	nfds = 1;
 
-	while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
+	int indexServer = indexOf(tp->id);
+	if (indexServer == -1)
 	{
+		return -1;
+	}
+	sc[indexServer]->state = 1;
+	sc[indexServer]->server.addr = client;
+	sc[indexServer]->server.socket = listening_socket;
+	while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
+	{ //Hearthbeat
+		sc[indexServer]->state = 1;
+
 		if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
 		{
 			if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
@@ -462,11 +513,18 @@ void *thread_server(void *params)
 						free(message_p);
 						return -1;
 					}
-					//printf("Recebido do cliente:");
-					//print_message(msg_pedido);
+
+					if (msg_pedido->opcode == OC_PUT || msg_pedido->opcode == OC_UPDATE) //Redundancia
+					{
+						int backup = -1;
+						//backup = backupToServer(msg_pedido);
+						if (backup == -1)
+						{
+							//Marcar o secundario como down
+						}
+					}
+
 					msg_resposta = invoke(msg_pedido);
-					//printf("Enviado para o cliente:");
-					//print_message(msg_resposta);
 
 					msg_size = message_to_buffer(msg_resposta, &message_r);
 
@@ -525,7 +583,6 @@ int main(int argc, char **argv)
 	int result, *r;
 	pthread_t primary_server, secondary_server;
 	struct thread_parameters thread_params;
-	struct server_t **servers;
 
 	if (argc < 3)
 	{
@@ -537,6 +594,13 @@ int main(int argc, char **argv)
 	thread_params.argv = argv;
 	thread_params.argc = argc;
 	thread_params.type = 1;
+	thread_params.id = unique_id;
+
+	sc = malloc( sizeof(ServerController*) * 20);
+
+	sc[0]->server_id = unique_id;
+	unique_id++;
+	sc[0]->state = 0;
 
 	if (pthread_create(&primary_server, NULL, &thread_server, (void *)&thread_params) != 0)
 	{
@@ -547,37 +611,93 @@ int main(int argc, char **argv)
 	thread_params.argv = argv;
 	thread_params.argc = argc;
 	thread_params.type = 2;
+	thread_params.id = unique_id;
+
+	sc[1]->server_id = unique_id;
+	unique_id++;
+	sc[1]->state = 0;
+
 	if (pthread_create(&secondary_server, NULL, &thread_server, (void *)&thread_params) != 0)
 	{
 		perror("\nThread do Servidor Secund�rio n�o criada.\n");
 		exit(EXIT_FAILURE);
 	}
-
+	clock_t t_inicio;
+	int startCounting = 0;
+	double time_taken = -1; // in seconds
 	while (1)
 	{
 		//Optimiza��o
-		sleep(5);
-		int i;
-		/*for (i = 0; i < 2; i++ 0)
+		sleep(1);
+
+		/*
+			Procura o hearthbeat e trata da logica entre controlador-servidor primario
+		*/ 
+		int indexPrimary = indexOf(idPrimary);
+		if (indexPrimary == -1)
 		{
-			int state = update_state(servers[i]);
-			if (state == -1) //Servidor dead
+			printf("Index do servidor primario nao foi encontrado\n");
+		}
+		else
+		{
+			if (sc[indexPrimary]->state == 1)
 			{
-				//Criar novo servidor dependendo do caso
-				if (i == 0)
+				sc[indexPrimary]->state = 0;
+			}
+			else if (sc[indexPrimary]->state == 0)
+			{
+				if (startCounting == 0)
 				{
-					//Primary server morreu, secundario agora � prim�rio e criar novo secund�rio
-					primary_server = secondary_server;
-					//New secondary
-					if (pthread_create(&secondary_server, NULL, &thread_secondary, (void *)&thread_s) != 0)
-					{
-						perror("\nThread do Servidor Secund�rio n�o criada.\n");
-						exit(EXIT_FAILURE);
-					}
+					t_inicio = clock();
+					startCounting = 1;
+				}
+				if (startCounting == 1)
+				{
+					clock_t t_atual = clock() - t_inicio;
+					time_taken = ((double)t_atual) / CLOCKS_PER_SEC;
+				}
+				if (time_taken > 5)
+				{
+					startCounting = 0;
+					//criar novo
+					sc[1]->server.type = SECONDARY;
 				}
 			}
 		}
-		*/
+		
+		/*
+			Procura o hearthbeat e trata da logica entre controlador-servidor secundario
+		*/ /*
+		int indexSecondary = indexOf(idSecondary);
+		if (indexSecondary == -1)
+		{
+			printf("Index do servidor primario nao foi encontrado\n");
+		}
+		else
+		{
+			if (sc[indexSecondary]->state == 1)
+			{
+				sc[indexSecondary]->state = 0;
+			}
+			else if (sc[indexSecondary]->state == 0)
+			{
+				if (startCounting == 0)
+				{
+					t_inicio = clock();
+					startCounting = 1;
+				}
+				if (startCounting == 1)
+				{
+					clock_t t_atual = clock() - t_inicio;
+					time_taken = ((double)t_atual) / CLOCKS_PER_SEC;
+				}
+				if (time_taken > 5)
+				{
+					startCounting = 0;
+					//criar novo
+				}
+			}
+		}*/
 	}
 
 	return 0;
