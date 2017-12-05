@@ -15,23 +15,23 @@ Executáveis: Sem problemas
 
 
 TO-DO SHIT :
-    0- Resolver os problemas do include, talvez seja no makefile nao sei
+    0- Mutex TOP PRIORITY
     1- Done
-    Falta estado de servidores (alive 1-vivo,0-morto)
+        DONE
     2- DONE
     3-
-        a-done
-        b- criar uma terceira thread que age como um cliente
+        a- done
+        b- criar uma quarta thread que age como um cliente
     4-
         a-done
         b- marcar dead no array de estados
-            -usar update_State(primary_backup)
-            -criar um inteiro maintenance para ver o estado em que esta (dentro do while).
+            -usar update_State(primary_backup) - Nao usamos isto ainda
+            -done.
             -marcar alive no array de estados.
 ---------#---------
     1-
         a-(table-client, usar o update_state do primary_backup)
-        1-primario , 2-sec , isto num array de estados como dead or alive before
+        1- done
 
     2-
     switch dentro de um while , modos como 1 ou 2 para identificar primary ou sec

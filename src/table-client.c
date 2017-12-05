@@ -278,6 +278,6 @@ int main(int argc, char **argv)
             token = (char *)malloc(80);
         }
     }
-    free(token);
+    //free(token); //Leak?? Crasha
     return rtables_unbind(rtables);
 }

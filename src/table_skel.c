@@ -13,11 +13,10 @@ int table_skel_init(char **n_tables)
 {
 	int count = atoi(n_tables[1]); // Na realidade tem mais 2 do que o numero de tabelas supostas
 
-	int i;
+	int i = 2, index = -1;
 	tables = (struct table_t *)malloc(sizeof(struct table_t) * count);
 	table = (struct table_t *)malloc(sizeof(struct table_t));
-	int index = -1;
-	for (i = 2; i < count; i++) //Como há 6 argumentos e so queremos a partir da casa 2, começamos do 2.
+	do
 	{
 		int size = atoi(n_tables[i]);
 		table = table_create(size);
@@ -28,7 +27,9 @@ int table_skel_init(char **n_tables)
 			return -1;
 		}
 		tables[++index] = *table;
-	}
+		i++;
+	} while (n_tables[i] != NULL);
+
 	return 0;
 }
 
@@ -111,7 +112,8 @@ struct message_t *invoke(struct message_t *msg_in)
 		msg_resposta->c_type = CT_VALUE;
 		msg_resposta->table_num = msg_in->table_num;
 		msg_resposta->content.data = table_get(&tables[msg_in->table_num], msg_in->content.key);
-		if(msg_resposta->content.data == NULL){
+		if (msg_resposta->content.data == NULL)
+		{
 			msg_resposta->content.data = data_create(0); //Cria um data vazio, tamanho 0
 		}
 		return msg_resposta;
