@@ -20,6 +20,7 @@
 #include <time.h>
 #include "inet.h"
 #include "table_skel.h"
+#include "client_stub.h"
 #include "table-private.h"
 #include "message.h"
 #include "primary_backup.h"
@@ -46,10 +47,13 @@ typedef struct ServerController
 } ServerController;
 
 ServerController **sc;
+
 int unique_id = 1;
 
-/***************************************************************/
 int idPrimary = 1, idSecondary = 2;
+
+/***************************************************************/
+int locked = 0;
 
 pthread_mutex_t dados = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t dados_disponiveis = PTHREAD_COND_INITIALIZER;
@@ -385,6 +389,7 @@ int network_receive_send(int sockfd, struct table_t *tables)
 */
 int indexOf(int id)
 {
+
 	int count = 0;
 	ServerController *serverC = sc[0];
 	while (serverC != NULL)
@@ -400,24 +405,33 @@ int indexOf(int id)
 	return -1;
 }
 
-int findFreeSlot()
+/*
+Backup da mensagem dada para o servidor secundario
+*/
+int backupToServer(struct message_t *msg_pedido)
 {
-	int count = 0;
-	ServerController *serverC = sc[0];
-	while (serverC != NULL)
+	struct rtables_t *rtables;
+	int result;
+	/* Usar network_connect para estabelcer ligação ao servidor */
+	int iSec = indexOf(idSecondary);
+	int portSecundario = sc[iSec]->server.port;
+	rtables = rtables_bind(portSecundario);
+	switch (msg_pedido->opcode)
 	{
-		if (serverC == NULL)
-		{
-			//Found
-			return count;
-		}
-		count++;
+	case OC_PUT:
+		rtables->currentTable = msg_pedido->table_num;
+		result = rtables_put(rtables, msg_pedido->content.key, msg_pedido->content.data);
+		break;
+	case OC_UPDATE:
+		rtables->currentTable = msg_pedido->table_num;
+		result = rtables_update(rtables, msg_pedido->content.key, msg_pedido->content.data);
+		break;
 	}
-	return -1;
+	return result;
 }
 
 /* 
-Thread onde corre a l�gica do servidor prim�rio
+Thread onde corre a l�gica dos servidores
 */
 void *thread_server(void *params)
 {
@@ -431,7 +445,10 @@ void *thread_server(void *params)
 	char *message_p, *message_r;
 	struct message_t *msg_pedido, *msg_resposta;
 
+	pthread_mutex_lock(&dados);
 	int indexServer = indexOf(tp->id);
+	pthread_mutex_unlock(&dados);
+	
 	if (indexServer == -1)
 	{
 		{
@@ -442,11 +459,15 @@ void *thread_server(void *params)
 			return result;
 		}
 	}
-
+	int porta;
 	if (tp->type == 1)
 	{
+		porta = atoi(tp->argv[1]);
+		pthread_mutex_lock(&dados);
+		sc[indexServer]->server.port = porta;
 		sc[indexServer]->server.type = 1;
-		if ((listening_socket = make_server_socket(atoi(tp->argv[1]))) < 0)
+		pthread_mutex_unlock(&dados);
+		if ((listening_socket = make_server_socket(porta) < 0))
 		{
 			result = (int *)malloc(sizeof(int));
 			perror("Falha na criacao da scoket do servidor primario\n");
@@ -457,8 +478,11 @@ void *thread_server(void *params)
 	}
 	else if (tp->type == 2)
 	{
+		porta = atoi(tp->argv[1]) + 1;
+		pthread_mutex_lock(&dados);
+		sc[indexServer]->server.port = porta;
 		sc[indexServer]->server.type = 2;
-		int porta = atoi(tp->argv[1]) + 1;
+		pthread_mutex_unlock(&dados);
 		if ((listening_socket = make_server_socket(porta) < 0))
 		{
 			result = (int *)malloc(sizeof(int));
@@ -485,17 +509,19 @@ void *thread_server(void *params)
 	polls[0].events = POLLIN;
 
 	nfds = 1;
+	pthread_mutex_lock(&dados);
 	sc[indexServer]->state = 1; //Hearthbeat inicial
 	sc[indexServer]->server.addr = client;
 	sc[indexServer]->server.socket = listening_socket;
+	pthread_mutex_unlock(&dados);
 
-	// Logica do servidor primario
-	if (sc[indexServer]->server.type == 1)
+	while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
 	{
-		while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
+		// Logica do servidor primario
+		if (sc[indexServer]->server.type == 1)
 		{
 			//Hearthbeat
-
+			pthread_mutex_lock(&dados);
 			printf("Servidor primario diz ola. Estado {%d} => ", sc[indexServer]->state);
 			sc[indexServer]->state = 1;
 			printf("{%d}\n", sc[indexServer]->state);
@@ -568,10 +594,12 @@ void *thread_server(void *params)
 						if (msg_pedido->opcode == OC_PUT || msg_pedido->opcode == OC_UPDATE) //Redundancia
 						{
 							int backup = -1;
-							//backup = backupToServer(msg_pedido);
+							backup = backupToServer(msg_pedido);
 							if (backup == -1)
 							{
 								//Marcar o secundario como down
+								int iSec = indexOf(idSecondary);
+								sc[iSec]->state = 0;
 							}
 						}
 
@@ -629,19 +657,18 @@ void *thread_server(void *params)
 					polls[i].fd = -1;
 				}
 			}
+			pthread_mutex_unlock(&dados);
 		}
-	}
-	// Logica do servidor secundario
-	else if (sc[indexServer]->server.type == 2)
-	{
-
-		while ((res = poll(polls, nfds, TIMEOUT)) >= 0)
+		// Logica do servidor secundario
+		else if (sc[indexServer]->server.type == 2)
 		{
+
+			pthread_mutex_lock(&dados);
 			//Hearthbeat
 			printf("Servidor secundario diz ola. Estado {%d} => ", sc[indexServer]->state);
 			sc[indexServer]->state = 1;
 			printf("{%d}\n", sc[indexServer]->state);
-			
+
 			if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
 			{
 				if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
@@ -761,8 +788,11 @@ void *thread_server(void *params)
 					polls[i].fd = -1;
 				}
 			}
+
+			pthread_mutex_unlock(&dados);
 		}
 	}
+
 	if (table_skel_destroy() == -1)
 		*result = -1;
 	for (i = 0; i < nfds; i++)
@@ -805,16 +835,6 @@ int main(int argc, char **argv)
 	primary->state = 0;
 	sc[0] = primary;
 
-	if (pthread_create(&primary_server, NULL, &thread_server, (void *)&thread_p) != 0)
-	{
-		perror("\nThread do Servidor Prim�rio n�o criada.\n");
-		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		if (!pthread_detach(primary_server))
-			printf("Thread Primary detached successfully.\n");
-	}
 	/* Par�metros para o servidor secundario */
 	thread_s.argv = argv;
 	thread_s.argc = argc;
@@ -827,6 +847,17 @@ int main(int argc, char **argv)
 	unique_id++;
 	secondary->state = 0;
 	sc[1] = secondary;
+
+	if (pthread_create(&primary_server, NULL, &thread_server, (void *)&thread_p) != 0)
+	{
+		perror("\nThread do Servidor Prim�rio n�o criada.\n");
+		exit(EXIT_FAILURE);
+	}
+	else
+	{
+		if (!pthread_detach(primary_server))
+			printf("Thread Primary detached successfully.\n");
+	}
 
 	if (pthread_create(&secondary_server, NULL, &thread_server, (void *)&thread_s) != 0)
 	{
@@ -844,12 +875,13 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		//Optimiza��o
-		sleep(5);
+		//sleep(5);
 
 		/*
 			Procura o hearthbeat e trata da logica entre controlador-servidor primario
 		*/
 
+		pthread_mutex_lock(&dados);
 		int indexPrimary = indexOf(idPrimary);
 		if (indexPrimary == -1)
 		{
@@ -868,7 +900,7 @@ int main(int argc, char **argv)
 				printf("Servidor primario nao encontrado, estado a 0.\n");
 				if (startCounting == 0)
 				{
-					printf("Esperando 30 segundos ate criar novo servidor.\n");
+					printf("Esperando 10 segundos ate criar novo servidor.\n");
 					if (clock_gettime(CLOCK_REALTIME, &start) == -1)
 					{
 						perror("clock gettime");
@@ -886,54 +918,26 @@ int main(int argc, char **argv)
 					accum = (stop.tv_sec - start.tv_sec) + (stop.tv_nsec - start.tv_nsec) / BILLION;
 					printf("Tempo passado desde a ultima comunicacao {%lf}.\n", accum);
 				}
-				if (accumS > 30)
+				if (1 > 5)
 				{
 					startCounting = 0;
-					//criar novo
-					//sc[1]->server.type = SECONDARY;
-					printf("Primario demorou demasiado tempo, criando novo servidor e atribuindo funcoes.\n");
+					printf("Primario demorou demasiado tempo, secundario é o novo primario.\n");
 					int indexSec = indexOf(idSecondary);
 					if (indexSec == -1)
 					{
 						printf("O Servidor secundário não foi encontrado.\n");
+						printf("Nenhum servidor está disponível, saindo...\n");
+						exit(EXIT_FAILURE);
 					}
 					else
 					{
 						//Mudar secundario atual para primario
 						sc[indexSec]->server.type = PRIMARY;
+						int oldPrimary = idPrimary;
 						idPrimary = idSecondary;
-
-						//Criar novo servidor secundario
-
-						/*
-						Parametros da Thread
-						*/
-						struct thread_parameters thread_new;
-						thread_new.argc = argc;
-						thread_new.argv = argv;
-						thread_new.id = unique_id;
-						thread_new.type = SECONDARY;
-
-						/*
-						Controlador do novo servidor
-						*/
-						ServerController *newServer;
-						newServer = malloc(sizeof(ServerController));
-						newServer->server_id = unique_id;
-						newServer->state = 0;
-
-						int freeIndex = findFreeSlot();
-						if (freeIndex < 0)
-						{
-							//Array full?
-							printf("Impossivel criar mais servidores\n");
-						}
-						else
-						{
-							sc[freeIndex] = newServer;
-							idSecondary = unique_id;
-							unique_id++;
-						}
+						// Quando o primario voltar, volta como secundario
+						sc[indexPrimary]->server.type = SECONDARY;
+						idSecondary = oldPrimary;
 					}
 				}
 			}
@@ -941,7 +945,7 @@ int main(int argc, char **argv)
 
 		/*
 			Procura o hearthbeat e trata da logica entre controlador-servidor secundario
-			*/
+		*/
 
 		int indexSecondary = indexOf(idSecondary);
 		if (indexSecondary == -1)
@@ -961,7 +965,6 @@ int main(int argc, char **argv)
 				printf("Servidor secundario nao encontrado, estado a 0.\n");
 				if (startCountingS == 0)
 				{
-					printf("Esperando 30 segundos ate criar novo servidor.\n");
 					if (clock_gettime(CLOCK_REALTIME, &startS) == -1)
 					{
 						perror("clock gettime");
@@ -977,46 +980,12 @@ int main(int argc, char **argv)
 						exit(-1);
 					}
 					accumS = (stopS.tv_sec - startS.tv_sec) + (stopS.tv_nsec - startS.tv_nsec) / BILLION;
-					printf("Tempo passado desde a ultima comunicacao {%lf}.\n", accumS);
-				}
-				if (accumS > 30)
-				{
-					startCountingS = 0;
-					//criar novo
-					printf("Secundario demorou demasiado tempo, criando novo servidor e atribuindo funcoes.\n");
-					int indexSec = findFreeSlot();
-					if (indexSec < 0)
-					{
-						printf("Impossivel criar mais servidores\n");
-					}
-					else
-					{
-						//Criar novo servidor secundario
-
-						/*
-							Parametros da Thread
-							*/
-						struct thread_parameters thread_new;
-						thread_new.argc = argc;
-						thread_new.argv = argv;
-						thread_new.id = unique_id;
-						thread_new.type = SECONDARY;
-
-						/*
-							Controlador do novo servidor
-							*/
-						ServerController *newServer;
-						newServer = malloc(sizeof(ServerController));
-						newServer->server_id = unique_id;
-						newServer->state = 0;
-
-						sc[indexSec] = newServer;
-						idSecondary = unique_id;
-						unique_id++;
-					}
+					printf("Tempo passado desde a ultima comunicacao do secundario {%lf}.\n", accumS);
 				}
 			}
 		}
+
+		pthread_mutex_unlock(&dados);
 	}
 	return 0;
 }

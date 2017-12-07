@@ -50,8 +50,8 @@ test_message: $(OBJ)test_message.o $(OBJ)message.o $(OBJ)table.o $(OBJ)entry.o $
 table-client: $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o
 	$(CC) $(OBJ)table-client.o $(OBJ)client_stub.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-client
 
-table-server: $(OBJ)table-server.o  $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o $(OBJ)primary_backup.o
-	$(CC) -pthread $(OBJ)table-server.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)primary_backup.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
+table-server: $(OBJ)table-server.o  $(OBJ)client_stub.o $(OBJ)table_skel.o $(OBJ)network_client.o $(OBJ)message.o $(OBJ)data.o $(OBJ)entry.o $(OBJ)table.o $(OBJ)primary_backup.o
+	$(CC) -pthread $(OBJ)table-server.o $(OBJ)client_stub.o $(OBJ)network_client.o  $(OBJ)table_skel.o $(OBJ)message.o $(OBJ)data.o $(OBJ)primary_backup.o $(OBJ)entry.o $(OBJ)table.o -o binary/table-server
 
 clean:
 	rm $(OBJ)*.o
