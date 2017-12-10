@@ -5,16 +5,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Server",
+            "name": "Debug Server 1",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/binary/table-server",
             "args": [
-                "1358",
-                "127.0.0.1:1359",
+                "1337",
+                "127.0.0.1:1338",
                 "10",
                 "20",
                 "30"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build project"
+        },
+        {
+            "name": "Debug Server 2",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/binary/table-server",
+            "args": [
+                "1338"                
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -37,7 +60,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/binary/table-client",
             "args": [
-                "127.0.0.1:1337"
+                "127.0.0.1:1338"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

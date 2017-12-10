@@ -7,7 +7,7 @@
    Uso: table-server <port> <table1_size> [<table2_size> ...]
    Exemplo de uso: ./table_server 54321 10 15 20 25
 */
-#define NFDESC 7
+#define NFDESC 10
 #define TIMEOUT 50
 #include <error.h>
 #include <errno.h>
@@ -40,6 +40,8 @@
 
 int type;
 
+char *port;
+
 int updated;
 
 struct server_t *primary;
@@ -53,7 +55,7 @@ struct thread_parameters
 ///	Exemplo de configS.ini
 /// ip:porta				// ip:porta do servidor primario para o secundario se ligar
 
-FILE *configP = NULL, *configS;
+FILE *configP = NULL, *configS = NULL;
 
 // TO-DO MUTEX'S
 
@@ -63,17 +65,6 @@ pthread_mutex_t dados = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t dados_disponiveis = PTHREAD_COND_INITIALIZER;
 
 /******************************************/
-void rewrite(char *line, char *string, FILE *config)
-{
-	long pos = ftell(config); //Save the current position
-	while (fgets(line, 500, config) != NULL)
-	{
-		fseek(config, pos, SEEK_SET); //move to beginning of line
-		fprintf(config, "%s", string);
-		fflush(config);
-		pos = ftell(config); //Save the current position
-	}
-}
 
 void print_message(struct message_t *msg)
 {
@@ -153,6 +144,29 @@ int make_server_socket(short port)
 		return -1;
 	}
 	return socket_fd;
+}
+
+/* 
+Thread onde corre a comunicacao de mensagens entre os servidores
+*/
+void *comm(void *params)
+{
+	struct thread_parameters *tp = (struct thread_parameters *)params;
+	struct message_t *msg_r;
+	int *result = 0;
+	result = (int *)malloc(sizeof(int));
+
+	msg_r = network_send_receive(primary->secondary, tp->msg_p);
+	if (msg_r == NULL)
+	{
+		printf("Erro no network_send_receive da thread\n");
+		*result = -1;
+		return result;
+	}
+
+	*result = msg_r->content.result;
+	free_message(msg_r);
+	return result;
 }
 
 /* Fun��o que recebe uma tabela e uma mensagem de pedido e:
@@ -276,7 +290,7 @@ struct message_t *process_message(struct message_t *msg_p, struct table_t *tabel
 	Aplica o pedido na tabela;
 	Envia a resposta.
 */
-int network_receive_send(int sockfd, struct table_t *tables)
+int network_receive_send(int sockfd)
 {
 	char *message_r, *message_p;
 	//int msg_length;
@@ -286,12 +300,6 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	/* Verificar par�metros de entrada */
 	if (sockfd < 0)
 	{
-		return -1;
-	}
-
-	if (tables == NULL)
-	{
-		free(tables);
 		return -1;
 	}
 	/* Com a fun��o read_all, receber num inteiro o tamanho da 
@@ -346,7 +354,97 @@ int network_receive_send(int sockfd, struct table_t *tables)
 		return -1;
 	}
 	/* Processar a mensagem */
-	msg_r = process_message(msg_p, &tables[msg_p->table_num]);
+
+	// Ver se é backup e se é um server secundario a receber
+	int flagOC = 0;
+	if (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE)
+	{
+		flagOC = 1;
+	}
+
+	if (type == SECONDARY && secondary->alive == ALIVE && (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE))
+	{
+		int sizeServer = sizeof(struct sockaddr_in);
+		struct sockaddr_in addr;
+
+		if (getpeername(sockfd, (struct sockaddr *)&addr, &sizeServer) == -1)
+		{
+			//IP invalido
+			free(msg_p);
+			return -1;
+		}
+		char line[256];
+		char *ip;
+		char *str[80];
+
+		configS = fopen("configS.ini", "a+");
+		if (fgets(line, 80, configS) == NULL)
+		{
+			ip = inet_ntoa(addr.sin_addr);
+			strcpy(str, ip);
+			strcat(str, ":");
+			int porta = atoi(port);
+			porta--;
+			char *newport[80];
+			sprintf(newport, "%d", porta);
+			strcat(str, newport);
+			fprintf(configS, "%s\n", str);
+		}
+		fclose(configS);
+
+		//Tudo pronto vamos la ligar ao primario
+		secondary->primary = network_connect(str);
+
+		//Ter a certeza que temos um estado replicado do servidor primario
+		//update_state() //Update state nao esta a funcionar........
+
+		//Process msg
+		msg_r = invoke(msg_p);
+	}
+	else if (type == PRIMARY && (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE))
+	{
+		if (primary->other_alive == ALIVE)
+		{
+
+			pthread_t comunicacao;
+			struct thread_parameters tp;
+			tp.msg_p = msg_p;
+			if (primary->other_alive == ALIVE)
+			{
+				if (pthread_create(&comunicacao, NULL, &comm, (void *)&tp) != 0)
+				{
+					perror("Thread nao criada\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+			//Esperar pelo resultado da thread
+			int *resposta, result;
+			pthread_join(comunicacao, (void **)&resposta);
+			//Apos backup, fazer no primary
+			msg_r = invoke(msg_p);
+
+			//Se correu mal, marcar como down
+			if (resposta != 0)
+			{
+				primary->other_alive = DEAD;
+				close(primary->secondary->socket);
+			}
+			free(resposta);
+		}
+		else{
+			//Apos backup, fazer no primary
+			msg_r = invoke(msg_p);
+		}
+	}
+	else if (type == PRIMARY && msg_p->opcode == OC_HEARTHBEAT)
+	{
+		msg_r = invoke(msg_p);
+		primary->other_alive = ALIVE;
+	}
+	else
+	{
+		msg_r = invoke(msg_p);
+	}
 
 	/* Serializar a mensagem recebida */
 	message_size = message_to_buffer(msg_r, &message_r);
@@ -399,34 +497,122 @@ int network_receive_send(int sockfd, struct table_t *tables)
 	return 0;
 }
 
-/* 
-Thread onde corre a comunicacao de mensagens entre os servidores
+/*
+Trata das conecoes na socket pretendida
 */
-void *comm(void *params)
+int connectionHandler(int max_clients, int socket)
 {
-	struct thread_parameters *tp = (struct thread_parameters *)params;
-	struct message_t *msg_r;
-	int *result = 0;
-	result = (int *)malloc(sizeof(int));
-	if (primary->secondary == NULL)
+	struct sockaddr_in client;
+	socklen_t size_client;
+	struct pollfd polls[max_clients]; //Array para fazer o poll de possiveis conecoes
+	int fds;						  //Numero de file descriptors
+	int index, result, param = 1;
+
+	//Setup das conecoes
+	for (index = 0; index < max_clients; index++)
 	{
-		printf("O servidor secundario esta null!?\n WHAT THE FUCK\n");
+		polls[index].fd = -1;
+		polls[index].events = POLLIN;
 	}
-	if (tp->msg_p == NULL)
+	//Primeira casa vai para a listening socket perceber quando ha eventos
+	polls[0].fd = socket;
+	polls[0].events = POLLIN;
+
+	fds = 1;
+
+	// Especifico para o tipo
+	if (type == PRIMARY)
 	{
-		printf("A mensagem esta null!?\n WHAT THE FUCK\n");
+		while ((result = poll(polls, max_clients, -1)) >= 0)
+		{
+			if (result > 0)
+			{
+				//Algum evento nos fds
+				//Ver o tipo agora
+				if ((polls[0].revents & POLLIN) && (fds < max_clients))
+				{
+					//Listening socket recebeu alguma coisa
+					if ((polls[fds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
+					{
+						polls[fds].events = POLLIN;
+						fds++;
+					}
+					//Registrar o socket anterior no kernel como usado
+					setsockopt(polls[fds - 1].fd, SOL_SOCKET, SO_REUSEADDR, (int *)&param, sizeof(param));
+				}
+				// Falta tratar do stdin
+
+				// Conexao Secundario
+				for (index = 1; index < fds; index++)
+				{
+					if (polls[index].revents & POLLIN)
+					{
+						char buffer[256];
+						if (recv(polls[index].fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0)
+						{
+							primary->other_alive = DEAD;
+							close(polls[index].fd);
+						}
+						if (network_receive_send(polls[index].fd) != 0)
+						{
+							close(polls[index].fd);
+							polls[index].fd = -1;
+							fds--;
+						}
+					}
+				}
+			}
+		}
+		return 0;
 	}
-	if ((msg_r = network_send_receive(primary->secondary, tp->msg_p)) == NULL)
+	else
 	{
-		printf("Erro no network_send_receive da thread\n");
-		*result = -1;
-		printf("---ENVIA SECUNDARIO FIM---\n");
-		return result;
+		while ((result = poll(polls, max_clients, -1)) >= 0)
+		{
+			if (result > 0)
+			{
+				//Algum evento nos fds
+				//Ver o tipo agora
+				if ((polls[0].revents & POLLIN) && (fds < max_clients))
+				{
+					//Listening socket recebeu alguma coisa
+					if ((polls[fds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
+					{
+						polls[fds].events = POLLIN;
+						fds++;
+					}
+					//Registrar o socket anterior no kernel como usado
+					setsockopt(polls[fds - 1].fd, SOL_SOCKET, SO_REUSEADDR, (int *)&param, sizeof(param));
+				}
+				// Falta tratar do stdin
+
+				// Conexao Primario
+				for (index = 1; index < fds; index++)
+				{
+					if (polls[index].revents & POLLIN)
+					{
+						char buffer[256];
+						if (recv(polls[index].fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0)
+						{
+							secondary->other_alive = -1;
+							close(polls[index].fd);
+						}
+						if (network_receive_send(polls[index].fd) != 0)
+						{
+							close(polls[index].fd);
+							polls[index].fd = -1;
+							fds--;
+						}
+					}
+				}
+				if (type == PRIMARY)
+				{
+					return 0;
+				}
+			}
+		}
 	}
-	*result = msg_r->content.result;
-	free_message(msg_r);
-	printf("---ENVIA SECUNDARIO FIM---\n");
-	return result;
+	return -1;
 }
 
 int main(int argc, char **argv)
@@ -458,10 +644,12 @@ int main(int argc, char **argv)
 	}
 	else if (argc < 3)
 	{
+		port = argv[1];
 		type = SECONDARY;
 	}
 	else
 	{
+		port = argv[1];
 		type = PRIMARY;
 		if (access("configP.ini", F_OK) == -1)
 		{
@@ -482,12 +670,6 @@ int main(int argc, char **argv)
 			printf("{%d}\n", porta);
 			exit(EXIT_FAILURE);
 		}
-		if (access("configS.ini", F_OK) == -1)
-		{
-			configS = fopen("configS.ini", "a+");			//criar o ficheiro se nao existe com ip porta do primario
-			fprintf(configS, "0\n127.0.0.1:%s\n", argv[1]); //Setup inicial com dois servidores nunca criados
-			fclose(configS);
-		}
 
 		/*********************************************************/
 		/* Criar as tabelas de acordo com linha de comandos dada */
@@ -500,7 +682,7 @@ int main(int argc, char **argv)
 		primary->alive = ALIVE;
 		primary->socket = listening_socket;
 
-		int give_up = 0, count, max_tries = 5;
+		int give_up = 0, count = 0, max_tries = 5;
 		do
 		{
 			primary->secondary = network_connect(argv[2]);
@@ -530,29 +712,22 @@ int main(int argc, char **argv)
 	{
 		if (access("configS.ini", F_OK) == -1)
 		{
-			perror("Servidor primario nunca foi criado, execute-o primeiro\n");
-			exit(EXIT_FAILURE);
+			secondary->socket = make_server_socket(atoi(argv[1]));
+			if (secondary->socket == NULL)
+			{
+				printf("Falha na socket do secundario\n");
+				return -1;
+			}
+			secondary->alive = ALIVE;
+			configS = fopen("configS.ini", "a+");
 		}
-		int porta = atoi(argv[1]);
-		listening_socket = make_server_socket(porta);
-		if (listening_socket < 0)
-		{
-			perror("Falha a criar o servidor com a porta");
-			printf("{%d}\n", porta);
-			exit(EXIT_FAILURE);
-		}
-		secondary->socket = listening_socket;
-
-		configS = fopen("configS.ini", "a+"); //abrir o ficheiro para appending
-		fgets(line, sizeof(line), configS);   //1a vez tem a informacao se ja foi criado algum secundario
-		int flag_created = atoi(line);		  //O servidor ja tinha sido criado?
-		if (flag_created == 1)
+		else
 		{
 			//Ligar ao ip do primario
 			//Avisar que esta vivo com o hearthbeat e fazer update_state
+			configS = fopen("configS.ini", "a+");
 			fgets(line, sizeof(line), configS);
-			secondary->alive = ALIVE;
-			secondary->primary = network_connect(line);
+			secondary->socket = network_connect(line);
 			if (secondary->primary == NULL)
 			{
 				perror("Impossivel conectar ao sevidor primario\n");
@@ -574,12 +749,8 @@ int main(int argc, char **argv)
 				}
 				updated = 1;
 			}
+			fclose(configS);
 		}
-		else
-		{
-			secondary->alive = ALIVE;
-		}
-		fclose(configS);
 	}
 	else
 	{
@@ -587,282 +758,27 @@ int main(int argc, char **argv)
 		printf("Type == %d\n", type);
 	}
 
-	//Setup das polls
-	int index = 0;
-	for (index = 0; index < NFDESC; index++)
-	{
-		polls[index].fd = -1; // ignore < 0
-	}
-	polls[0].fd = listening_socket;
-	polls[0].events = POLLIN;
-
-	nfds = 1;
-
-	res = -1;
 	//Logica de servidor, esperar por comunicacao
-	while ((res = poll(polls, nfds, -1)) >= 0)
+	while (1)
 	{
-		if (res > 0)
+		int result;
+		if (type == PRIMARY)
 		{
-			if (type == PRIMARY)
-			{
-				if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
-				{
-					if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
-					{ // Liga��o feita
-						printf("Cliente{%d} connectado\n", nfds);
-						polls[nfds].events = POLLIN;
-						nfds++;
-					}
-				}
-
-				for (i = 1; i < nfds; i++)
-				{
-					if (polls[i].revents & POLLIN)
-					{
-						if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
-						{
-							printf("O cliente desligou-se\n");
-							close(polls[i].fd);
-							nfds--;
-							polls[i].fd = -1;
-							continue;
-						}
-						else if (result != _INT)
-						{
-							printf("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							polls[i].fd = -1;
-							continue;
-						}
-
-						msg_size = ntohl(msg_size);
-						msg_p = (struct message_t *)malloc(msg_size);
-						message_p = (char *)malloc(msg_size);
-
-						if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
-						{
-							printf("O cliente desligou-se\n");
-							close(polls[i].fd);
-							nfds--;
-							polls[i].fd = -1;
-							continue;
-						}
-						else if (result != msg_size)
-						{
-							printf("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							polls[i].fd = -1;
-							continue;
-						}
-
-						else
-						{
-							msg_p = buffer_to_message(message_p, msg_size);
-
-							if (msg_p == NULL)
-							{
-								free_message(msg_p);
-								free(message_p);
-								perror("Falha a receber a mensagem do cliente\n");
-								return -1;
-							}
-
-							if (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE) //Redundancia
-							{
-								//Enviar backup para secundario
-								int backup_result = -1;
-								struct thread_parameters thread_p;
-								thread_p.msg_p = msg_p;
-
-								if (pthread_create(&communicacao, NULL, &comm, (void *)&msg_p) != 0)
-								{
-									perror("\nThread não criada.\n");
-									exit(EXIT_FAILURE);
-								}
-								if (pthread_join(communicacao, (void **)&r) != 0)
-								{
-									perror("\nErro no join.\n");
-									exit(EXIT_FAILURE);
-								}
-
-								backup_result = *r;
-								free(r);
-								if (backup_result == -1)
-								{
-									//Marcar o secundario como down
-									primary->other_alive = DEAD;
-									//Fechar a ligacao para outros novos servidores usarem a porta original
-									close(primary->secondary->socket);
-								}
-							}
-							//Oh hi mark -- Best movie ever
-							if (msg_p->opcode == OC_HEARTHBEAT)
-							{
-								msg_r = invoke(msg_p);
-								primary->other_alive = ALIVE; //por o secundario up
-							}
-
-							msg_r = invoke(msg_p);
-
-							msg_size = message_to_buffer(msg_r, &message_r);
-
-							if (msg_size <= 0)
-							{
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_p);
-								return -1;
-							}
-
-							int message_size = msg_size;
-							msg_size = htonl(message_size);
-							if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
-							{
-								perror("Erro ao receber dados do cliente");
-								close(polls[i].fd);
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_r);
-								free(message_p);
-								return result;
-							}
-
-							if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
-							{
-								perror("Erro ao receber dados do cliente");
-								close(polls[i].fd);
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_p);
-								free(message_r);
-								return result;
-							}
-						}
-					}
-
-					if (polls[i].revents & POLLHUP)
-					{
-						close(polls[i].fd);
-						polls[i].fd = -1;
-					}
-				}
-			}
-			else if (type == SECONDARY)
-			{
-				if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
-				{
-					if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
-					{ // Liga��o feita
-						printf("Cliente{%d} connectado\n", nfds);
-						polls[nfds].events = POLLIN;
-						nfds++;
-					}
-				}
-
-				for (i = 1; i < nfds; i++)
-				{
-					if (polls[i].revents & POLLIN)
-					{
-						if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
-						{
-							printf("O cliente desligou-se\n");
-							close(polls[i].fd);
-							nfds--;
-							polls[i].fd = -1;
-							continue;
-						}
-						else if (result != _INT)
-						{
-							printf("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							polls[i].fd = -1;
-							continue;
-						}
-
-						msg_size = ntohl(msg_size);
-						msg_p = (struct message_t *)malloc(msg_size);
-						message_p = (char *)malloc(msg_size);
-
-						if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
-						{
-							printf("O cliente desligou-se\n");
-							close(polls[i].fd);
-							nfds--;
-							polls[i].fd = -1;
-							continue;
-						}
-						else if (result != msg_size)
-						{
-							printf("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							polls[i].fd = -1;
-							continue;
-						}
-
-						else
-						{
-							msg_p = buffer_to_message(message_p, msg_size);
-
-							if (msg_p == NULL)
-							{
-								free_message(msg_p);
-								free(message_p);
-								perror("Falha a receber a mensagem do cliente\n");
-								return -1;
-							}
-
-							msg_r = invoke(msg_p);
-
-							msg_size = message_to_buffer(msg_r, &message_r);
-
-							if (msg_size <= 0)
-							{
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_p);
-								return -1;
-							}
-
-							int message_size = msg_size;
-							msg_size = htonl(message_size);
-							if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
-							{
-								perror("Erro ao receber dados do cliente");
-								close(polls[i].fd);
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_r);
-								free(message_p);
-								return result;
-							}
-
-							if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
-							{
-								perror("Erro ao receber dados do cliente");
-								close(polls[i].fd);
-								free_message(msg_p);
-								free_message(msg_r);
-								free(message_p);
-								free(message_r);
-								return result;
-							}
-						}
-					}
-
-					if (polls[i].revents & POLLHUP)
-					{
-						close(polls[i].fd);
-						polls[i].fd = -1;
-					}
-				}
-			}
+			//Max clientes + stdin + listening socket do primary + secundario
+			connectionHandler(NFDESC + 3, primary->socket);
+		}
+		else
+		{
+			connectionHandler(NFDESC, secondary->socket);
 		}
 	}
 
 	free(primary);
 	free(secondary);
 	table_skel_destroy();
-	remove("config.ini");
+	fclose(configP);
+	fclose(configS);
+	remove("configS.ini");
+	remove("configP.ini");
 	return 0;
 }
