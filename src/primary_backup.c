@@ -12,33 +12,33 @@ int hello(struct server_t *server)
   {
     return -1;
   }
-  struct message_t *message_p = (struct message_t *)malloc(sizeof(struct message_t));
+  struct message_t *msg_p = (struct message_t *)malloc(sizeof(struct message_t));
   //Se a mensagem esta a null houve falha no malloc
   //Possivel falta de memoria?
-  if (message_p == NULL)
+  if (msg_p == NULL)
   {
     perror("Malloc da mensagem durante o hello\n");
     return -1;
   }
 
   //Init das variaveis
-  message_p->opcode = OC_HEARTHBEAT;
-  message_p->c_type = CT_RESULT;
-  message_p->content.result = 0;
-  message_p->table_num = 0;
+  msg_p->opcode = OC_HEARTHBEAT;
+  msg_p->c_type = CT_RESULT;
+  msg_p->content.result = 0;
+  msg_p->table_num = 0;
 
-  struct message_t *message_r;
-  message_r = network_send_receive(server, message_p);
-  if (message_p == NULL)
+  struct message_t *msg_r;
+  msg_r = network_send_receive(server, msg_p);
+  if (msg_p == NULL)
   {
     perror("Network send receive falhou, durante o hello\n");
-    free_message(message_p);
+    free_message(msg_p);
     return -1;
   }
   // Please no leakerino
-  result = message_r->content.result;
-  free_message(message_p);
-  free_message(message_r);
+  result = msg_r->content.result;
+  free_message(msg_p);
+  free_message(msg_r);
   return result;
 }
 
