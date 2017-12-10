@@ -139,3 +139,7 @@ struct message_t *invoke(struct message_t *msg_in)
 	free(msg_resposta);
 	return NULL; // se falhar todos retorna NULL RIGHT???
 }
+
+struct table_t *get_table(int numero){
+	return (&tables[numero]);
+}

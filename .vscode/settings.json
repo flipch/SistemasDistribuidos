@@ -2,6 +2,9 @@
     "files.associations": {
         "primary_backup.h": "c",
         "stdio.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "inet.h": "c",
+        "network_client-private.h": "c",
+        "network_client.h": "c"
     }
 }

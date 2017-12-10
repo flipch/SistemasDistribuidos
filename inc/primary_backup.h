@@ -1,7 +1,7 @@
 #ifndef _PRIMARY_BACKUP_H
 #define _PRIMARY_BACKUP_H
-#include "primary_backup-private.h"
 
+#include "primary_backup-private.h"
 
 struct server_t; /* Para definir em primary_backup-private.h */
 

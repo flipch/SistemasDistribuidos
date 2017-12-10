@@ -29,10 +29,10 @@ table_skel.o: $(INCLUDE)message.h $(INCLUDE)table_skel.h
 client_stub.o: $(INCLUDE)data.h $(INCLUDE)message.h $(INCLUDE)network_client.h $(INCLUDE)client_stub-private.h $(INCLUDE)client_stub.h
 	$(FLAG) $(SRC)client_stub.c -o $(OBJ)client_stub.o	
 
-network_client.o: $(INCLUDE)message.h $(INCLUDE)inet.h
+network_client.o: $(INCLUDE)message.h $(INCLUDE)inet.h $(INCLUDE)primary_backup.h
 	$(FLAG) $(SRC)network_client.c -o $(OBJ)network_client.o
 
-primary_backup.o: $(INCLUDE)primary_backup.h $(INCLUDE)primary_backup-private.h $(INCLUDE)table-private.h $(INCLUDE)table.h
+primary_backup.o: $(INCLUDE)primary_backup.h $(INCLUDE)inet.h $(INCLUDE)primary_backup-private.h $(INCLUDE)table-private.h $(INCLUDE)table.h
 	$(FLAG) $(SRC)primary_backup.c -o $(OBJ)primary_backup.o
 
 table-client.o: $(INCLUDE)network_client-private.h $(INCLUDE)inet.h

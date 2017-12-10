@@ -3,6 +3,7 @@
 
 #include "inet.h"
 #include "network_client.h"
+#include "primary_backup.h"
 
 /* Função que garante o envio de len bytes armazenados em buf,
    através da socket sock.

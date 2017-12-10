@@ -3,6 +3,7 @@
 //Pedro Gama 47081
 
 #include "network_client-private.h"
+
 #include "inet.h"
 #include <stdlib.h>
 #include <ctype.h>
