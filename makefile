@@ -7,7 +7,7 @@ INCLUDE = inc/
 OBJ = obj/
 BIN = binary/
 SRC = src/
-FLAG = gcc -g -Wall -I inc/ -c
+FLAG = gcc -g -w -Wall -I inc/ -c
 
 all : data.o entry.o table.o primary_backup.o message.o table_skel.o client_stub.o test_message.o network_client.o table-client.o table-server.o test_message table-client table-server
 

@@ -47,7 +47,6 @@ int hello(struct server_t *server)
 */
 int update_state(struct server_t *server)
 {
-  int result;
   //Enviar mensagem a server com o nosso heartbeat
   //Se server esta a null nem nos preocupamos
   if (server == NULL)
@@ -57,9 +56,8 @@ int update_state(struct server_t *server)
 
   //Referencia das tabelas antes dos conteudos
   struct table_t *table;
-  struct table_t *tables;
+  //struct table_t *tables;
   int n_tabelas;
-
   char **sizes_tabelas = malloc(n_tabelas * sizeof(char *));
   //Table_skell_init recebe o argv puro, ou seja, ainda tem
   //Na casa 1 o nome do binario, e 2 a porta

@@ -356,7 +356,7 @@ int network_receive_send(int sockfd)
 	/* Processar a mensagem */
 
 	// Ver se é backup e se é um server secundario a receber
-	int flagOC = 0;
+	int flagOC;
 	if (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE)
 	{
 		flagOC = 1;
@@ -418,7 +418,7 @@ int network_receive_send(int sockfd)
 				}
 			}
 			//Esperar pelo resultado da thread
-			int *resposta, result;
+			int *resposta;
 			pthread_join(comunicacao, (void **)&resposta);
 			//Apos backup, fazer no primary
 			msg_r = invoke(msg_p);
@@ -617,14 +617,8 @@ int connectionHandler(int max_clients, int socket)
 
 int main(int argc, char **argv)
 {
-	int res, *r, result, msg_size, nfds, i;
-	pthread_t communicacao;
 	int listening_socket;
 	struct sockaddr_in client;
-	socklen_t size_client;
-	struct pollfd polls[NFDESC];
-	char *message_p, *message_r;
-	struct message_t *msg_p, *msg_r;
 	char line[256];
 
 	//Fix das sockets nao serem fechadas normalmente
@@ -676,7 +670,7 @@ int main(int argc, char **argv)
 		/*********************************************************/
 		table_skel_init(argv);
 
-		size_client = sizeof(struct sockaddr_in);
+		//socklen_t size_client = sizeof(struct sockaddr_in);
 
 		primary->addr = client;
 		primary->alive = ALIVE;
@@ -761,7 +755,6 @@ int main(int argc, char **argv)
 	//Logica de servidor, esperar por comunicacao
 	while (1)
 	{
-		int result;
 		if (type == PRIMARY)
 		{
 			//Max clientes + stdin + listening socket do primary + secundario
