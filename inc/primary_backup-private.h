@@ -10,15 +10,16 @@
 #include <signal.h>
 #include "table_skel-private.h"
 
+#define ALIVE 1
+#define DEAD 0
+
 struct server_t{
   int socket;
   struct sockaddr_in addr;
   struct server_t *secondary;  //NULL => servidor e secundario
   struct server_t *primary;    //NULL => servidor e primario
-  int alive;
-  struct table_t* tables;
-	int type;
-	int port; 
+  int alive;  //Estou vivo?
+  int other_alive;  //O vizinho esta vivo?
 };
 
 #endif

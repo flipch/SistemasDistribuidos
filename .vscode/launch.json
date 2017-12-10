@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/binary/table-server",
             "args": [
-                "1337",
+                "1358",
+                "127.0.0.1:1359",
                 "10",
                 "20",
                 "30"

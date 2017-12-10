@@ -124,8 +124,6 @@ int update_state(struct server_t *server)
     free_message(msg_p);
     free_message(msg_r);
 
-    
-    
     int indexK; //index keys
 
     while (keys[indexK] != NULL)
@@ -196,8 +194,9 @@ int update_state(struct server_t *server)
       }
       free_message(msg_p);
       free_message(msg_r);
-    }    
-  
-  //All gut
-  return 0;
+    }
+
+    //All gut
+    return 0;
+  }
 }
