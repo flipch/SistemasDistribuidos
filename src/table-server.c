@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include <time.h>
 #include "inet.h"
 #include "table_skel.h"
@@ -44,6 +45,11 @@ int updated;
 struct server_t *primary;
 struct server_t *secondary;
 
+struct thread_parameters
+{
+	struct message_t *msg_p;
+};
+
 ///	Exemplo de configS.ini
 /// ip:porta				// ip:porta do servidor primario para o secundario se ligar
 
@@ -62,9 +68,8 @@ void rewrite(char *line, char *string, FILE *config)
 	long pos = ftell(config); //Save the current position
 	while (fgets(line, 500, config) != NULL)
 	{
-		line = string;
 		fseek(config, pos, SEEK_SET); //move to beginning of line
-		fprintf(config, "%s", line);
+		fprintf(config, "%s", string);
 		fflush(config);
 		pos = ftell(config); //Save the current position
 	}
@@ -397,10 +402,9 @@ int network_receive_send(int sockfd, struct table_t *tables)
 /* 
 Thread onde corre a comunicacao de mensagens entre os servidores
 */
-void *comm(void *msg_p)
+void *comm(void *params)
 {
-
-	struct message_t *msg = (struct message_t *)msg_p;
+	struct thread_parameters *tp = (struct thread_parameters *)params;
 	struct message_t *msg_r;
 	int *result = 0;
 	result = (int *)malloc(sizeof(int));
@@ -408,11 +412,11 @@ void *comm(void *msg_p)
 	{
 		printf("O servidor secundario esta null!?\n WHAT THE FUCK\n");
 	}
-	if (msg == NULL)
+	if (tp->msg_p == NULL)
 	{
 		printf("A mensagem esta null!?\n WHAT THE FUCK\n");
 	}
-	if ((msg_r = network_send_receive(primary->secondary, msg)) == NULL)
+	if ((msg_r = network_send_receive(primary->secondary, tp->msg_p)) == NULL)
 	{
 		printf("Erro no network_send_receive da thread\n");
 		*result = -1;
@@ -436,6 +440,9 @@ int main(int argc, char **argv)
 	char *message_p, *message_r;
 	struct message_t *msg_p, *msg_r;
 	char line[256];
+
+	//Fix das sockets nao serem fechadas normalmente
+	signal(SIGPIPE, SIG_IGN);
 
 	primary = malloc(sizeof(struct server_t));
 	secondary = malloc(sizeof(struct server_t));
@@ -468,7 +475,8 @@ int main(int argc, char **argv)
 	if (type == PRIMARY)
 	{
 		int porta = atoi(argv[1]);
-		if ((listening_socket = make_server_socket(porta) < 0))
+		listening_socket = make_server_socket(porta);
+		if (listening_socket < 0)
 		{
 			perror("Falha a criar o servidor com a porta");
 			printf("{%d}\n", porta);
@@ -490,8 +498,9 @@ int main(int argc, char **argv)
 
 		primary->addr = client;
 		primary->alive = ALIVE;
+		primary->socket = listening_socket;
 
-		int give_up = 0, count, max_tries = 3;
+		int give_up = 0, count, max_tries = 5;
 		do
 		{
 			primary->secondary = network_connect(argv[2]);
@@ -505,11 +514,15 @@ int main(int argc, char **argv)
 				{
 					give_up = 1;
 					primary->other_alive = DEAD;
+					printf("Desisto\n");
 				}
 			}
 			else
 			{
 				primary->other_alive = ALIVE;
+				primary->secondary->alive = ALIVE;
+				printf("Servidor Secundario encontrado\n");
+				give_up = 1;
 			}
 		} while (give_up != 1);
 	}
@@ -521,12 +534,14 @@ int main(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 		int porta = atoi(argv[1]);
-		if ((listening_socket = make_server_socket(porta) < 0))
+		listening_socket = make_server_socket(porta);
+		if (listening_socket < 0)
 		{
 			perror("Falha a criar o servidor com a porta");
 			printf("{%d}\n", porta);
 			exit(EXIT_FAILURE);
 		}
+		secondary->socket = listening_socket;
 
 		configS = fopen("configS.ini", "a+"); //abrir o ficheiro para appending
 		fgets(line, sizeof(line), configS);   //1a vez tem a informacao se ja foi criado algum secundario
@@ -563,7 +578,6 @@ int main(int argc, char **argv)
 		else
 		{
 			secondary->alive = ALIVE;
-			rewrite(line, "1\n", configS);
 		}
 		fclose(configS);
 	}
@@ -590,143 +604,257 @@ int main(int argc, char **argv)
 	{
 		if (res > 0)
 		{
-			if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
+			if (type == PRIMARY)
 			{
-				if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
-				{ // Liga��o feita
-					printf("Cliente{%d} connectado\n", nfds);
-					polls[nfds].events = POLLIN;
-					nfds++;
+				if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
+				{
+					if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
+					{ // Liga��o feita
+						printf("Cliente{%d} connectado\n", nfds);
+						polls[nfds].events = POLLIN;
+						nfds++;
+					}
+				}
+
+				for (i = 1; i < nfds; i++)
+				{
+					if (polls[i].revents & POLLIN)
+					{
+						if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
+						{
+							printf("O cliente desligou-se\n");
+							close(polls[i].fd);
+							nfds--;
+							polls[i].fd = -1;
+							continue;
+						}
+						else if (result != _INT)
+						{
+							printf("Erro ao receber dados do cliente");
+							close(polls[i].fd);
+							polls[i].fd = -1;
+							continue;
+						}
+
+						msg_size = ntohl(msg_size);
+						msg_p = (struct message_t *)malloc(msg_size);
+						message_p = (char *)malloc(msg_size);
+
+						if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
+						{
+							printf("O cliente desligou-se\n");
+							close(polls[i].fd);
+							nfds--;
+							polls[i].fd = -1;
+							continue;
+						}
+						else if (result != msg_size)
+						{
+							printf("Erro ao receber dados do cliente");
+							close(polls[i].fd);
+							polls[i].fd = -1;
+							continue;
+						}
+
+						else
+						{
+							msg_p = buffer_to_message(message_p, msg_size);
+
+							if (msg_p == NULL)
+							{
+								free_message(msg_p);
+								free(message_p);
+								perror("Falha a receber a mensagem do cliente\n");
+								return -1;
+							}
+
+							if (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE) //Redundancia
+							{
+								//Enviar backup para secundario
+								int backup_result = -1;
+								struct thread_parameters thread_p;
+								thread_p.msg_p = msg_p;
+
+								if (pthread_create(&communicacao, NULL, &comm, (void *)&msg_p) != 0)
+								{
+									perror("\nThread não criada.\n");
+									exit(EXIT_FAILURE);
+								}
+								if (pthread_join(communicacao, (void **)&r) != 0)
+								{
+									perror("\nErro no join.\n");
+									exit(EXIT_FAILURE);
+								}
+
+								backup_result = *r;
+								free(r);
+								if (backup_result == -1)
+								{
+									//Marcar o secundario como down
+									primary->other_alive = DEAD;
+									//Fechar a ligacao para outros novos servidores usarem a porta original
+									close(primary->secondary->socket);
+								}
+							}
+							//Oh hi mark -- Best movie ever
+							if (msg_p->opcode == OC_HEARTHBEAT)
+							{
+								msg_r = invoke(msg_p);
+								primary->other_alive = ALIVE; //por o secundario up
+							}
+
+							msg_r = invoke(msg_p);
+
+							msg_size = message_to_buffer(msg_r, &message_r);
+
+							if (msg_size <= 0)
+							{
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_p);
+								return -1;
+							}
+
+							int message_size = msg_size;
+							msg_size = htonl(message_size);
+							if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
+							{
+								perror("Erro ao receber dados do cliente");
+								close(polls[i].fd);
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_r);
+								free(message_p);
+								return result;
+							}
+
+							if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
+							{
+								perror("Erro ao receber dados do cliente");
+								close(polls[i].fd);
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_p);
+								free(message_r);
+								return result;
+							}
+						}
+					}
+
+					if (polls[i].revents & POLLHUP)
+					{
+						close(polls[i].fd);
+						polls[i].fd = -1;
+					}
 				}
 			}
-
-			for (i = 1; i < nfds; i++)
+			else if (type == SECONDARY)
 			{
-				if (polls[i].revents & POLLIN)
+				if ((polls[0].revents & POLLIN) && (nfds < NFDESC))
 				{
-					if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
-					{
-						printf("O cliente desligou-se\n");
-						close(polls[i].fd);
-						nfds--;
-						polls[i].fd = -1;
-						continue;
-					}
-					else if (result != _INT)
-					{
-						printf("Erro ao receber dados do cliente");
-						close(polls[i].fd);
-						polls[i].fd = -1;
-						continue;
-					}
-
-					msg_size = ntohl(msg_size);
-					msg_p = (struct message_t *)malloc(msg_size);
-					message_p = (char *)malloc(msg_size);
-
-					if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
-					{
-						printf("O cliente desligou-se\n");
-						close(polls[i].fd);
-						nfds--;
-						polls[i].fd = -1;
-						continue;
-					}
-					else if (result != msg_size)
-					{
-						printf("Erro ao receber dados do cliente");
-						close(polls[i].fd);
-						polls[i].fd = -1;
-						continue;
-					}
-
-					else
-					{
-						msg_p = buffer_to_message(message_p, msg_size);
-
-						if (msg_p == NULL)
-						{
-							free_message(msg_p);
-							free(message_p);
-							perror("Falha a receber a mensagem do cliente\n");
-							return -1;
-						}
-
-						if (msg_p->opcode == OC_PUT || msg_p->opcode == OC_UPDATE) //Redundancia
-						{
-							//Enviar backup para secundario
-							int backup_result = -1;
-
-							if (pthread_create(&communicacao, NULL, &comm, (void *)&msg_p) != 0)
-							{
-								perror("\nThread não criada.\n");
-								exit(EXIT_FAILURE);
-							}
-							if (pthread_join(communicacao, (void **)&r) != 0)
-							{
-								perror("\nErro no join.\n");
-								exit(EXIT_FAILURE);
-							}
-
-							backup_result = *r;
-							free(r);
-							if (backup_result == -1)
-							{
-								//Marcar o secundario como down
-								primary->other_alive = DEAD;
-								//Fechar a ligacao para outros novos servidores usarem a porta original
-								close(primary->secondary->socket);
-							}
-						}
-						//Oh hi mark -- Best movie ever
-						if (msg_p->opcode == OC_HEARTHBEAT)
-						{
-							msg_r = invoke(msg_p);
-							primary->other_alive = ALIVE; //por o secundario up
-						}
-
-						msg_r = invoke(msg_p);
-
-						msg_size = message_to_buffer(msg_r, &message_r);
-
-						if (msg_size <= 0)
-						{
-							free_message(msg_p);
-							free_message(msg_r);
-							free(message_p);
-							return -1;
-						}
-
-						int message_size = msg_size;
-						msg_size = htonl(message_size);
-						if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
-						{
-							perror("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							free_message(msg_p);
-							free_message(msg_r);
-							free(message_r);
-							free(message_p);
-							return result;
-						}
-
-						if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
-						{
-							perror("Erro ao receber dados do cliente");
-							close(polls[i].fd);
-							free_message(msg_p);
-							free_message(msg_r);
-							free(message_p);
-							free(message_r);
-							return result;
-						}
+					if ((polls[nfds].fd = accept(polls[0].fd, (struct sockaddr *)&client, &size_client)) > 0)
+					{ // Liga��o feita
+						printf("Cliente{%d} connectado\n", nfds);
+						polls[nfds].events = POLLIN;
+						nfds++;
 					}
 				}
 
-				if (polls[i].revents & POLLHUP)
+				for (i = 1; i < nfds; i++)
 				{
-					close(polls[i].fd);
-					polls[i].fd = -1;
+					if (polls[i].revents & POLLIN)
+					{
+						if ((result = read_all(polls[i].fd, (char *)&msg_size, _INT)) == 0)
+						{
+							printf("O cliente desligou-se\n");
+							close(polls[i].fd);
+							nfds--;
+							polls[i].fd = -1;
+							continue;
+						}
+						else if (result != _INT)
+						{
+							printf("Erro ao receber dados do cliente");
+							close(polls[i].fd);
+							polls[i].fd = -1;
+							continue;
+						}
+
+						msg_size = ntohl(msg_size);
+						msg_p = (struct message_t *)malloc(msg_size);
+						message_p = (char *)malloc(msg_size);
+
+						if ((result = read_all(polls[i].fd, message_p, msg_size)) == 0)
+						{
+							printf("O cliente desligou-se\n");
+							close(polls[i].fd);
+							nfds--;
+							polls[i].fd = -1;
+							continue;
+						}
+						else if (result != msg_size)
+						{
+							printf("Erro ao receber dados do cliente");
+							close(polls[i].fd);
+							polls[i].fd = -1;
+							continue;
+						}
+
+						else
+						{
+							msg_p = buffer_to_message(message_p, msg_size);
+
+							if (msg_p == NULL)
+							{
+								free_message(msg_p);
+								free(message_p);
+								perror("Falha a receber a mensagem do cliente\n");
+								return -1;
+							}
+
+							msg_r = invoke(msg_p);
+
+							msg_size = message_to_buffer(msg_r, &message_r);
+
+							if (msg_size <= 0)
+							{
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_p);
+								return -1;
+							}
+
+							int message_size = msg_size;
+							msg_size = htonl(message_size);
+							if ((result = write_all(polls[i].fd, (char *)&msg_size, _INT)) != _INT)
+							{
+								perror("Erro ao receber dados do cliente");
+								close(polls[i].fd);
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_r);
+								free(message_p);
+								return result;
+							}
+
+							if ((result = write_all(polls[i].fd, message_r, message_size)) != message_size)
+							{
+								perror("Erro ao receber dados do cliente");
+								close(polls[i].fd);
+								free_message(msg_p);
+								free_message(msg_r);
+								free(message_p);
+								free(message_r);
+								return result;
+							}
+						}
+					}
+
+					if (polls[i].revents & POLLHUP)
+					{
+						close(polls[i].fd);
+						polls[i].fd = -1;
+					}
 				}
 			}
 		}

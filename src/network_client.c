@@ -122,8 +122,9 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 
 	/* Verificar parâmetros de entrada */
 
-	if (server == NULL) //ver se o ServerPrimario esta a null
+	if (server == NULL || msg == NULL)
 	{
+		close(server->socket); //ver se o ServerPrimario esta a null
 		return NULL;
 	}
 
@@ -134,7 +135,11 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	message_size = message_to_buffer(msg, &message_out);
 
 	/* Verificar se a serialização teve sucesso */
-
+	if (message_size < 0)
+	{
+		close(server->socket);
+		return NULL;
+	}
 	/* Enviar ao servidor o tamanho da mensagem que será enviada
 	   logo de seguida
 	*/
@@ -147,7 +152,10 @@ struct message_t *network_send_receive(struct server_t *server, struct message_t
 	}
 
 	/* Verificar se o envio teve sucesso */
-
+	if (result != _INT)
+	{
+		printf("Envio do tamanho da msg sem sucesso...\n");
+	}
 	/* Enviar a mensagem que foi previamente serializada */
 
 	write_all(server->socket, message_out, message_size);
